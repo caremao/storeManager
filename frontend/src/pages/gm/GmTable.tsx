@@ -47,7 +47,8 @@ export function GmTable() {
           <div>
             <h2 className="text-xl font-semibold text-gray-100">Tiendas</h2>
             <p className="no-print text-gray-400">
-              La vitrina muestra lo que hay a la venta a quien la escanee, sin sesión. Lo oculto no aparece.
+              Un jugador de la campaña que lo escanea va directo al mostrador. Cualquier otro ve la vitrina:
+              lo que hay a la venta, sin sesión. Lo oculto no aparece.
             </p>
           </div>
           <div className={grid}>

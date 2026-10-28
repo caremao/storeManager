@@ -7,8 +7,9 @@ Tiendas e inventarios para una mesa presencial de D&D 5e (reglas de 2014).
   stock y mueve las monedas.
 - **Cada jugador** escanea el QR de su personaje una vez. Desde el teléfono ve su bolsa y su
   inventario, los administra, y compra o vende en las tiendas abiertas.
-- **Cada tienda** tiene además un QR de vitrina: cualquiera que lo escanee ve lo que hay a la venta,
-  sin sesión. Lo que el GM marca como oculto no aparece.
+- **Cada tienda** tiene además un QR. El jugador que lo escanea va directo al mostrador de esa tienda.
+  Cualquier otro ve la vitrina, con lo que hay a la venta, sin sesión. Lo que el GM marca como oculto
+  no aparece.
 - Todo se actualiza en vivo por SSE y queda en el historial.
 
 ## Stack
@@ -74,7 +75,8 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
   - "Nuevo QR" revoca el anterior y cierra las sesiones que lo usaban.
   - La vitrina de cada tienda (`/vitrina#<token>`) es pública y de solo lectura: muestra nombre,
     precio y stock de lo que está a la vista, nunca la caja, las notas ni lo oculto. Tiene su propio
-    "Nuevo QR". Si quien la abre ya es jugador de la campaña, puede ir al mostrador desde ahí.
+    "Nuevo QR". Si quien la abre ya es jugador de la campaña, pasa directo al mostrador: el servidor
+    lo reconoce por la cookie de sesión y devuelve el `shopId`.
 - **Compras y ventas.**
   - El jugador pide desde el mostrador. Si la tienda exige aprobación, el pedido queda pendiente
     hasta que el GM lo aprueba. Si no la exige, las compras a precio de lista se ejecutan al instante.

@@ -12,6 +12,9 @@ const FIELD_LABELS: Record<string, string> = {
   unlimitedStock: 'stock ilimitado',
   weight: 'peso',
   valueCp: 'valor',
+  perceivedValueCp: 'valor estimado',
+  valueRevealed: 'conoce el valor',
+  negotiable: 'negociable',
   copper: 'pc',
   silver: 'pp',
   gold: 'po',
@@ -20,9 +23,12 @@ const FIELD_LABELS: Record<string, string> = {
 
 type Changes = Record<string, { old: unknown; new: unknown }>
 
+/** Campos que no vale la pena listar: la moneda ya va con el monto. */
+const SILENT = new Set(['priceDenomination', 'perceivedDenomination'])
+
 function show(field: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
-  if (field === 'valueCp') return formatMoney(Number(value))
+  if (field.endsWith('ValueCp') || field === 'valueCp') return formatMoney(Number(value))
   if (typeof value === 'boolean') return value ? 'sí' : 'no'
   const text = String(value)
   return text.length > 30 ? `${text.slice(0, 30)}…` : text
@@ -31,6 +37,7 @@ function show(field: string, value: unknown): string {
 function describeChanges(changes: Changes | undefined): string | null {
   if (!changes) return null
   return Object.entries(changes)
+    .filter(([field]) => !SILENT.has(field))
     .map(([field, c]) =>
       field === 'description' || field === 'notes'
         ? FIELD_LABELS[field]

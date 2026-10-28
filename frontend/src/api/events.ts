@@ -13,13 +13,14 @@ const RETRY_MS = 5000
 
 /**
  * Escucha /api/events y refresca lo que cambió. El servidor solo avisa qué cambió; los datos
- * se vuelven a pedir con los permisos de cada uno.
+ * se vuelven a pedir con los permisos de cada uno. Si el navegador pasa a otra campaña (desde el
+ * portal admin), la conexión se rehace con la sesión nueva.
  */
-export function useCampaignEvents(enabled: boolean) {
+export function useCampaignEvents(campaignId: string | null) {
   const qc = useQueryClient()
 
   useEffect(() => {
-    if (!enabled) return
+    if (!campaignId) return
     let source: EventSource | null = null
     let retryTimer: number | undefined
     let connectedBefore = false
@@ -52,5 +53,5 @@ export function useCampaignEvents(enabled: boolean) {
       window.clearTimeout(retryTimer)
       source?.close()
     }
-  }, [enabled, qc])
+  }, [campaignId, qc])
 }

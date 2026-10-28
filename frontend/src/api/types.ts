@@ -237,3 +237,39 @@ export interface SrdItem {
   description: string | null
   properties: Record<string, unknown> | null
 }
+
+// --- Portal admin ---
+
+export interface AdminInventory {
+  id: string
+  kind: InventoryKind
+  name: string
+  playerName: string | null
+  /** Cantidad de items distintos (no de unidades). */
+  items: number
+  totalCp: number
+  /** null en los personajes. */
+  visibleToPlayers: boolean | null
+}
+
+export interface AdminSession {
+  id: string
+  role: Role
+  /** null en las sesiones de GM. */
+  characterName: string | null
+  createdAt: string
+  expiresAt: string
+}
+
+export interface AdminCampaign {
+  id: string
+  slug: string
+  name: string
+  createdAt: string
+  /** Último movimiento del historial; null si nunca hubo. */
+  lastActivityAt: string | null
+  /** Solicitudes pendientes o con contraoferta. */
+  openTrades: number
+  inventories: AdminInventory[]
+  sessions: AdminSession[]
+}

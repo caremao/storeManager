@@ -21,6 +21,8 @@ services:
       APP_COOKIE_SECURE: "true"
       # Opcional: si se define en .env, crear campañas exige esta clave.
       APP_CAMPAIGN_CREATION_KEY: ${CAMPAIGN_CREATION_KEY:-}
+      # Opcional: clave del portal /admin (16 caracteres o más). Sin ella, el portal no existe.
+      APP_ADMIN_KEY: ${ADMIN_KEY:-}
     volumes:
       # En nass/stacks (ZFS), fuera del disco del sistema.
       - ./data:/data

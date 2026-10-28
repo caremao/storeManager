@@ -22,7 +22,11 @@ public class EventBroadcaster implements SmartLifecycle {
 
     private static final long TIMEOUT_MS = Duration.ofMinutes(30).toMillis();
 
-    private final Map<UUID, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
+    /** Una conexión y la sesión que la abrió, para cortarla si esa sesión se cierra. */
+    private record Connection(UUID sessionId, SseEmitter emitter) {
+    }
+
+    private final Map<UUID, Set<Connection>> connections = new ConcurrentHashMap<>();
     private volatile boolean running;
 
     @Override
@@ -37,8 +41,8 @@ public class EventBroadcaster implements SmartLifecycle {
     @Override
     public void stop() {
         running = false;
-        emitters.values().forEach(campaign -> campaign.forEach(SseEmitter::complete));
-        emitters.clear();
+        connections.values().forEach(campaign -> campaign.forEach(c -> c.emitter().complete()));
+        connections.clear();
     }
 
     @Override
@@ -48,44 +52,60 @@ public class EventBroadcaster implements SmartLifecycle {
 
     public SseEmitter subscribe(Actor actor) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
-        Set<SseEmitter> campaign = emitters.computeIfAbsent(actor.campaignId(), k -> new CopyOnWriteArraySet<>());
-        campaign.add(emitter);
-        emitter.onCompletion(() -> campaign.remove(emitter));
-        emitter.onTimeout(() -> campaign.remove(emitter));
-        emitter.onError(e -> campaign.remove(emitter));
-        send(campaign, emitter, SseEmitter.event().name("ready").data(Map.of("ok", true)));
+        Connection connection = new Connection(actor.sessionId(), emitter);
+        Set<Connection> campaign = connections.computeIfAbsent(actor.campaignId(), k -> new CopyOnWriteArraySet<>());
+        campaign.add(connection);
+        emitter.onCompletion(() -> campaign.remove(connection));
+        emitter.onTimeout(() -> campaign.remove(connection));
+        emitter.onError(e -> campaign.remove(connection));
+        send(campaign, connection, SseEmitter.event().name("ready").data(Map.of("ok", true)));
         return emitter;
     }
 
     /** Se emite solo después del commit: nadie se entera de un cambio que se revirtió. */
     @TransactionalEventListener(fallbackExecution = true)
     public void onCampaignEvent(CampaignEvent event) {
-        Set<SseEmitter> campaign = emitters.get(event.campaignId());
+        Set<Connection> campaign = connections.get(event.campaignId());
         if (campaign == null) {
             return;
         }
         Map<String, Object> payload = Map.of("inventoryIds", event.inventoryIds(), "tradeIds", event.tradeIds(),
                 "campaign", event.campaign());
-        for (SseEmitter emitter : campaign) {
-            send(campaign, emitter, SseEmitter.event().name("change").data(payload));
+        for (Connection connection : campaign) {
+            send(campaign, connection, SseEmitter.event().name("change").data(payload));
+        }
+    }
+
+    /** También después del commit: si el navegador reconectara antes, la sesión todavía existiría. */
+    @TransactionalEventListener(fallbackExecution = true)
+    public void onSessionsClosed(SessionsClosed event) {
+        Set<Connection> campaign = connections.get(event.campaignId());
+        if (campaign == null) {
+            return;
+        }
+        for (Connection connection : campaign) {
+            if (event.sessionIds().contains(connection.sessionId())) {
+                campaign.remove(connection);
+                connection.emitter().complete();
+            }
         }
     }
 
     /** Mantiene viva la conexión a través de Caddy y Funnel. */
     @Scheduled(fixedRate = 20_000)
     public void heartbeat() {
-        emitters.values().forEach(campaign -> {
-            for (SseEmitter emitter : campaign) {
-                send(campaign, emitter, SseEmitter.event().comment("hb"));
+        connections.values().forEach(campaign -> {
+            for (Connection connection : campaign) {
+                send(campaign, connection, SseEmitter.event().comment("hb"));
             }
         });
     }
 
-    private static void send(Set<SseEmitter> campaign, SseEmitter emitter, SseEmitter.SseEventBuilder event) {
+    private static void send(Set<Connection> campaign, Connection connection, SseEmitter.SseEventBuilder event) {
         try {
-            emitter.send(event);
+            connection.emitter().send(event);
         } catch (IOException | IllegalStateException e) {
-            campaign.remove(emitter);
+            campaign.remove(connection);
         }
     }
 }

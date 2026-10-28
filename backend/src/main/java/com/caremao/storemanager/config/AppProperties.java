@@ -12,7 +12,12 @@ public record AppProperties(
         Duration gmSessionTtl,
         Duration playerSessionTtl,
         String campaignCreationKey,
-        long maxRequestBytes) {
+        long maxRequestBytes,
+        String adminKey,
+        Duration adminSessionTtl) {
+
+    /** Más corta, la clave del portal admin (que ve todas las campañas) no lo enciende. */
+    public static final int MIN_ADMIN_KEY_LENGTH = 16;
 
     /**
      * QR de un personaje. El token va en el fragmento ({@code #}): el navegador no lo envía al
@@ -29,6 +34,10 @@ public record AppProperties(
 
     public boolean campaignCreationKeyRequired() {
         return campaignCreationKey != null && !campaignCreationKey.isBlank();
+    }
+
+    public boolean adminEnabled() {
+        return adminKey != null && !adminKey.isBlank() && adminKey.length() >= MIN_ADMIN_KEY_LENGTH;
     }
 
     private String base() {

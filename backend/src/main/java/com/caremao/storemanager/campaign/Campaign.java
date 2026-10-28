@@ -49,6 +49,14 @@ public class Campaign {
         return gmPassphraseHash;
     }
 
+    public void setGmPassphraseHash(String gmPassphraseHash) {
+        this.gmPassphraseHash = gmPassphraseHash;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public boolean isPlayersCanAddCoins() {
         return playersCanAddCoins;
     }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, isStatus } from './client'
 import type {
+  AdminCampaign,
   Campaign,
   CreateInventoryInput,
   CurrencyChange,
@@ -30,6 +31,8 @@ export const keys = {
   trades: (status?: TradeStatus) => ['trades', status ?? 'all'] as const,
   history: (inventoryId?: string, size = 20) => ['history', inventoryId ?? 'all', size] as const,
   srd: (query: string) => ['srd', query] as const,
+  adminStatus: ['admin', 'status'] as const,
+  adminCampaigns: ['admin', 'campaigns'] as const,
 }
 
 /** Tras un cambio propio: lo mismo que haría el evento SSE, pero sin esperarlo. */
@@ -361,4 +364,99 @@ export function useHistory(inventoryId?: string, size = 20) {
     queryFn: async () =>
       (await api.get<HistoryPage>('/api/history', { params: { inventoryId, size } })).data,
   })
+}
+
+// --- Portal admin ---
+
+/** 'off': el servidor no tiene ADMIN_KEY; 'out': hace falta la clave; 'in': sesión abierta. */
+export type AdminStatus = 'off' | 'out' | 'in'
+
+export function useAdminStatus(enabled = true) {
+  return useQuery({
+    queryKey: keys.adminStatus,
+    queryFn: async (): Promise<AdminStatus> => {
+      try {
+        await api.get('/api/admin/session')
+        return 'in'
+      } catch (error) {
+        if (isStatus(error, 404)) return 'off'
+        if (isStatus(error, 401)) return 'out'
+        throw error
+      }
+    },
+    enabled,
+    staleTime: Infinity,
+  })
+}
+
+export function useAdminLogin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (key: string) => {
+      await api.post('/api/admin/login', { key })
+    },
+    onSuccess: () => qc.setQueryData<AdminStatus>(keys.adminStatus, 'in'),
+  })
+}
+
+export function useAdminLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      await api.post('/api/admin/logout')
+    },
+    onSettled: () => {
+      qc.setQueryData<AdminStatus>(keys.adminStatus, 'out')
+      qc.removeQueries({ queryKey: keys.adminCampaigns })
+    },
+  })
+}
+
+export function useAdminCampaigns() {
+  return useQuery({
+    queryKey: keys.adminCampaigns,
+    queryFn: async () => (await api.get<AdminCampaign[]>('/api/admin/campaigns')).data,
+    staleTime: 0,
+  })
+}
+
+/** Cada acción puede cerrar la propia sesión de GM de este navegador: también se revisa `me`. */
+function useAdminMutation<V>(request: (vars: V) => Promise<unknown>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: request,
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.adminCampaigns })
+      qc.invalidateQueries({ queryKey: keys.me })
+    },
+  })
+}
+
+/** Deja a este navegador como GM de la campaña, igual que un login con su contraseña. */
+export function useEnterAsGm() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (campaignId: string) =>
+      (await api.post<Me>(`/api/admin/campaigns/${campaignId}/gm-session`)).data,
+    onSuccess: (me) => {
+      // Los datos de la campaña anterior no sirven; el estado del portal sí.
+      const admin = qc.getQueryData<AdminStatus>(keys.adminStatus)
+      qc.clear()
+      qc.setQueryData(keys.me, me)
+      if (admin) qc.setQueryData(keys.adminStatus, admin)
+    },
+  })
+}
+
+export function useResetPassphrase() {
+  return useAdminMutation(async ({ campaignId, passphrase }: { campaignId: string; passphrase: string }) =>
+    api.put(`/api/admin/campaigns/${campaignId}/passphrase`, { passphrase }))
+}
+
+export function useCloseSession() {
+  return useAdminMutation(async (sessionId: string) => api.delete(`/api/admin/sessions/${sessionId}`))
+}
+
+export function useDeleteCampaign() {
+  return useAdminMutation(async (campaignId: string) => api.delete(`/api/admin/campaigns/${campaignId}`))
 }

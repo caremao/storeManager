@@ -79,7 +79,9 @@ public class TradeService {
         Item item;
         Long list;
         if (request.kind() == TradeKind.BUY) {
+            // Un objeto oculto, para el jugador, no existe: el GM lo vende con la venta directa.
             item = items.findByIdAndInventoryId(request.itemId(), shop.getId())
+                    .filter(found -> !found.isHidden())
                     .orElseThrow(() -> ApiException.notFound("Artículo"));
             if (offer != null && !item.isNegotiable()) {
                 throw ApiException.badRequest(item.getName() + " no se negocia: se vende a su precio");

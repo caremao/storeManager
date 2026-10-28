@@ -77,4 +77,9 @@ public class InventoryController {
     public InventoryDto regenerateToken(Actor actor, @PathVariable UUID id) {
         return inventories.regenerateToken(actor, id);
     }
+
+    @PostMapping("/{id}/storefront-token")
+    public InventoryDto regenerateStorefrontToken(Actor actor, @PathVariable UUID id) {
+        return inventories.regenerateStorefrontToken(actor, id);
+    }
 }

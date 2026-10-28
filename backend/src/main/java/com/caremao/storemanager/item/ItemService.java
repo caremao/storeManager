@@ -45,6 +45,7 @@ public class ItemService {
     public List<ItemDto> list(Actor actor, UUID inventoryId) {
         Inventory inventory = inventories.requireReadable(actor, inventoryId);
         return items.findByInventoryIdOrderByNameAsc(inventoryId).stream()
+                .filter(item -> actor.isGm() || !item.isHidden())
                 .map(item -> toDto(actor, inventory, item))
                 .toList();
     }
@@ -129,7 +130,7 @@ public class ItemService {
                 item.getPriceDenomination(),
                 gm || !shop ? item.getPerceivedValueCp() : null,
                 gm || !shop ? item.getPerceivedDenomination() : null,
-                item.isValueRevealed(), item.isNegotiable(),
+                item.isValueRevealed(), item.isNegotiable(), item.isHidden(),
                 item.getSrdIndex(), item.getProperties(), item.getUpdatedAt());
     }
 
@@ -158,6 +159,7 @@ public class ItemService {
             item.setPriceDenomination(request.priceDenomination());
             item.setValueRevealed(request.valueRevealed() == null || request.valueRevealed());
             item.setNegotiable(inventory.isShop() && Boolean.TRUE.equals(request.negotiable()));
+            item.setHidden(inventory.isShop() && Boolean.TRUE.equals(request.hidden()));
         } else if (creating) {
             // Lo que anota el jugador es lo que cree que vale; el valor real lo fija el GM.
             item.setValueCp(null);

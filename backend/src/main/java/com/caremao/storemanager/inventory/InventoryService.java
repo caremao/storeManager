@@ -112,6 +112,7 @@ public class InventoryService {
         if (inventory.isShop()) {
             applyShopSettings(inventory, request.visibleToPlayers(), request.requiresApproval(),
                     request.unlimitedFunds(), request.sellMarkupPct(), request.buybackPct());
+            inventory.setPublicToken(Tokens.random(TOKEN_BYTES));
         } else {
             inventory.setPlayerName(request.playerName());
             inventory.setAccessToken(Tokens.random(TOKEN_BYTES));
@@ -190,6 +191,19 @@ public class InventoryService {
         return toDto(actor, inventory);
     }
 
+    /** Nuevo QR de vitrina para la tienda: el anterior deja de abrir. */
+    @Transactional
+    public InventoryDto regenerateStorefrontToken(Actor actor, UUID id) {
+        actor.requireGm();
+        Inventory inventory = requireReadable(actor, id);
+        if (!inventory.isShop()) {
+            throw ApiException.badRequest("Solo las tiendas tienen vitrina");
+        }
+        inventory.setPublicToken(Tokens.random(TOKEN_BYTES));
+        events.publishEvent(CampaignEvent.inventories(actor.campaignId(), inventory.getId()));
+        return toDto(actor, inventory);
+    }
+
     public InventoryDto toDto(Actor actor, Inventory inv) {
         boolean shop = inv.isShop();
         boolean showPurse = actor.isGm() || !shop;
@@ -203,6 +217,7 @@ public class InventoryService {
                 shop ? inv.getBuybackPct() : null,
                 inv.isCharacter() ? inv.getPlayerName() : null,
                 inv.isCharacter() && actor.isGm() ? props.joinUrl(inv.getAccessToken()) : null,
+                shop && actor.isGm() && inv.getPublicToken() != null ? props.storefrontUrl(inv.getPublicToken()) : null,
                 inv.getUpdatedAt());
     }
 

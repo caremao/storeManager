@@ -41,6 +41,9 @@ public class Inventory {
     private int sellMarkupPct = 100;
     private int buybackPct = 50;
 
+    /** Solo tiendas: token del QR de la vitrina pública; se regenera para revocarlo. */
+    private String publicToken;
+
     // Solo personajes
     private String playerName;
     /** Token del QR; es una credencial, se regenera para revocar el acceso. */
@@ -148,6 +151,14 @@ public class Inventory {
 
     public void setBuybackPct(int buybackPct) {
         this.buybackPct = buybackPct;
+    }
+
+    public String getPublicToken() {
+        return publicToken;
+    }
+
+    public void setPublicToken(String publicToken) {
+        this.publicToken = publicToken;
     }
 
     public String getPlayerName() {

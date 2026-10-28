@@ -12,7 +12,13 @@ export type TradeKind = 'BUY' | 'SELL'
 /** PENDING: le toca al GM. COUNTERED: el GM contraofertó y le toca al jugador. */
 export type TradeStatus = 'PENDING' | 'COUNTERED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 export type OfferBy = 'PLAYER' | 'GM'
-export type HistoryAction = 'ITEM_ADDED' | 'ITEM_UPDATED' | 'ITEM_REMOVED' | 'CURRENCY_UPDATED' | 'TRADE_EXECUTED'
+export type HistoryAction =
+  | 'ITEM_ADDED'
+  | 'ITEM_UPDATED'
+  | 'ITEM_REMOVED'
+  | 'CURRENCY_UPDATED'
+  | 'TRADE_EXECUTED'
+  | 'ITEMS_IMPORTED'
 
 export interface Campaign {
   id: string
@@ -54,8 +60,10 @@ export interface Inventory {
   sellMarkupPct: number | null
   buybackPct: number | null
   playerName: string | null
-  /** Solo el GM la recibe. */
+  /** QR del personaje; solo el GM lo recibe. */
   joinUrl: string | null
+  /** QR de la vitrina pública de una tienda; solo el GM lo recibe. */
+  storefrontUrl: string | null
   updatedAt: string
 }
 
@@ -116,6 +124,8 @@ export interface Item {
   valueRevealed: boolean
   /** En una tienda: acepta ofertas. */
   negotiable: boolean
+  /** En una tienda: solo lo ve el GM. */
+  hidden: boolean
   srdIndex: string | null
   properties: Record<string, unknown> | null
   updatedAt: string
@@ -138,6 +148,7 @@ export interface ItemInput {
   /** Solo los respeta el servidor si los manda el GM. */
   valueRevealed: boolean
   negotiable: boolean
+  hidden: boolean
   srdIndex: string | null
   properties: Record<string, unknown> | null
 }
@@ -181,6 +192,37 @@ export interface HistoryEntry {
 export interface HistoryPage {
   entries: HistoryEntry[]
   total: number
+}
+
+export interface StorefrontItem {
+  id: string
+  name: string
+  type: ItemType
+  category: string | null
+  rarity: ItemRarity
+  description: string | null
+  quantity: number
+  unlimitedStock: boolean
+  weight: number | null
+  priceCp: number | null
+  priceDenomination: Denomination | null
+  negotiable: boolean
+  properties: Record<string, unknown> | null
+}
+
+/** Vitrina pública. `shopId` solo viene si quien mira es jugador de esa campaña. */
+export interface Storefront {
+  name: string
+  description: string | null
+  requiresApproval: boolean
+  items: StorefrontItem[]
+  shopId: string | null
+}
+
+export interface ImportResult {
+  rows: { row: number; name: string; quantity: number; valueCp: number | null; denomination: Denomination | null; merges: boolean }[]
+  errors: { row: number; message: string }[]
+  imported: number
 }
 
 export interface SrdItem {

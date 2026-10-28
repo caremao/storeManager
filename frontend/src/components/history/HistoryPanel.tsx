@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftRight, Coins, History, Minus, Pencil, Plus } from 'lucide-react'
+import { ArrowLeftRight, Coins, FileUp, History, Minus, Pencil, Plus } from 'lucide-react'
 import { useHistory } from '../../api/hooks'
 import type { HistoryAction } from '../../api/types'
 import { card, secondaryButton, smallButton } from '../ui/styles'
@@ -11,6 +11,7 @@ const ICONS: Record<HistoryAction, typeof Plus> = {
   ITEM_REMOVED: Minus,
   CURRENCY_UPDATED: Coins,
   TRADE_EXECUTED: ArrowLeftRight,
+  ITEMS_IMPORTED: FileUp,
 }
 
 const PAGE = 15

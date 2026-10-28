@@ -118,7 +118,8 @@ public class ApiClient {
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .method(method, publisher);
-        headers.forEach(builder::header);
+        // setHeader reemplaza: así un Content-Type propio (p. ej. text/csv) pisa el de JSON.
+        headers.forEach(builder::setHeader);
         return builder.build();
     }
 }

@@ -6,6 +6,7 @@ import type {
   CurrencyChange,
   Denomination,
   HistoryPage,
+  ImportResult,
   Inventory,
   InventoryKind,
   Item,
@@ -13,6 +14,7 @@ import type {
   Me,
   ServerConfig,
   SrdItem,
+  Storefront,
   Trade,
   TradeKind,
   TradeStatus,
@@ -38,6 +40,8 @@ export function invalidateInventory(qc: QueryClient, ...ids: string[]) {
   }
   qc.invalidateQueries({ queryKey: ['inventories'] })
   qc.invalidateQueries({ queryKey: ['history'] })
+  // Una vitrina abierta con sesión se entera por SSE; sin sesión, por su refresco periódico.
+  qc.invalidateQueries({ queryKey: ['storefront'] })
 }
 
 // --- Sesión ---
@@ -200,7 +204,48 @@ export function useRegenerateToken() {
   })
 }
 
+export function useRegenerateStorefront() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => (await api.post<Inventory>(`/api/inventories/${id}/storefront-token`)).data,
+    onSuccess: (inv) => {
+      qc.setQueryData(keys.inventory(inv.id), inv)
+      qc.invalidateQueries({ queryKey: ['inventories'] })
+    },
+  })
+}
+
+/** Vitrina pública: sin sesión y sin SSE, así que se refresca sola cada medio minuto. */
+export function useStorefront(token: string) {
+  return useQuery({
+    queryKey: ['storefront', token],
+    queryFn: async () => (await api.get<Storefront>(`/api/storefront/${encodeURIComponent(token)}`)).data,
+    enabled: token.length > 0,
+    refetchInterval: 30_000,
+    retry: (count, error) => !isStatus(error, 404) && count < 2,
+  })
+}
+
 // --- Items ---
+
+/** Importa un CSV: con `dryRun` solo devuelve la vista previa; sin él escribe (todo o nada). */
+export function useImportItems(inventoryId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ csv, dryRun }: { csv: string; dryRun: boolean }) => {
+      const response = await api.post<ImportResult>(`/api/inventories/${inventoryId}/items/import`, csv, {
+        params: { dryRun },
+        headers: { 'Content-Type': 'text/csv; charset=utf-8' },
+        // Un 422 trae los errores por fila: se devuelve igual para mostrarlos.
+        validateStatus: (status) => status === 200 || status === 422,
+      })
+      return response.data
+    },
+    onSuccess: (result, { dryRun }) => {
+      if (!dryRun && result.imported > 0) invalidateInventory(qc, inventoryId)
+    },
+  })
+}
 
 export function useItems(inventoryId: string | undefined) {
   return useQuery({

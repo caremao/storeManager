@@ -1,0 +1,24 @@
+# Backend
+backend/target/
+backend/data/
+*.mv.db
+*.trace.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secretos locales
+.env
+*.local.env
+
+# Claude Code (config local de la sesión)
+.claude/settings.local.json

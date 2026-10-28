@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: storemanager
+  datasource:
+    url: jdbc:h2:file:${app.data-dir}/storemanager
+    username: sa
+    password: ""
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  mvc:
+    problemdetails:
+      enabled: true
+  web:
+    resources:
+      # La SPA la sirve WebConfig, con fallback a index.html
+      add-mappings: false
+
+server:
+  port: 8080
+  # Detrás de Caddy o Tailscale Funnel: respeta X-Forwarded-*
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  api-docs:
+    path: /api/openapi.json
+
+app:
+  data-dir: ./data
+  # Base de los links de los QR. En THREE: la URL pública de Funnel.
+  public-base-url: http://localhost:5173
+  cookie-secure: false
+  gm-session-ttl: 30d
+  player-session-ttl: 180d
+  # Si no está vacía, crear campañas exige esta clave.
+  campaign-creation-key: ""

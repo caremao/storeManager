@@ -1,0 +1,26 @@
+# Stack de THREE: copiar a /opt/stacks/storemanager/compose.yaml (ver README, "Despliegue en THREE").
+services:
+  storemanager:
+    image: storemanager:${STOREMANAGER_VERSION:-0.1.0}
+    container_name: storemanager
+    restart: unless-stopped
+    user: "1000:1884"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
+    mem_limit: 512m
+    ports:
+      # Caddy (tienda-dnd.srv.home.arpa) llega por la IP de THREE; Tailscale Funnel, por loopback.
+      - "192.168.100.142:8094:8080"
+      - "127.0.0.1:8094:8080"
+    environment:
+      # Adónde apuntan los QR. Por defecto, la LAN (los teléfonos necesitan la CA de mkcert).
+      # Al exponerla con Funnel: APP_PUBLIC_BASE_URL=https://three.tail181f18.ts.net:8443 en .env.
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-https://tienda-dnd.srv.home.arpa}
+      APP_COOKIE_SECURE: "true"
+      # Opcional: si se define en .env, crear campañas exige esta clave.
+      APP_CAMPAIGN_CREATION_KEY: ${CAMPAIGN_CREATION_KEY:-}
+    volumes:
+      # En nass/stacks (ZFS), fuera del disco del sistema.
+      - ./data:/data

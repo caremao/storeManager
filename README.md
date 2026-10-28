@@ -43,7 +43,8 @@ cd backend && ./mvnw verify
   precios, historial y slugs.
 - **Tests de integración (`*IT`):** levantan la app y hablan por HTTP real, con cookies y SSE. Cubren
   el flujo de compra con aprobación, la compra directa, la venta, los permisos por rol y la carrera por
-  la última unidad.
+  la última unidad. `SecurityIT`, `ValidationIT` y `UntrustedProxyIT` prueban entradas hostiles:
+  pedidos de otros sitios, cuerpos gigantes, rotación de IPs en el login, números fuera de rango.
 
 ```bash
 cd frontend && npm run typecheck && npm run lint && npm run build
@@ -54,16 +55,30 @@ cd frontend && npm run typecheck && npm run lint && npm run build
 - **Inventarios.** Tiendas y personajes son inventarios: cada uno tiene items, monedas
   (`copper`/`silver`/`gold`/`platinum`) e historial. Los precios se guardan en piezas de cobre.
 - **Acceso.**
-  - El GM entra con la contraseña de la campaña.
-  - Cada personaje tiene un token de 128 bits: el QR lleva a `/join/<token>`, que lo cambia por una
-    cookie `HttpOnly`.
+  - El GM entra con la contraseña de la campaña (8 a 72 bytes, guardada con bcrypt). No hay una
+    contraseña maestra por encima de las campañas.
+  - Cada personaje tiene un token de 128 bits. El QR lleva a `/join#<token>`: al ir en el fragmento,
+    el navegador no lo envía al servidor y no queda en logs. La SPA lo cambia por una cookie `HttpOnly`.
   - "Nuevo QR" revoca el anterior y cierra las sesiones que lo usaban.
 - **Compras y ventas.**
   - El jugador pide desde el mostrador. Si la tienda exige aprobación, el pedido queda pendiente y el
     GM lo aprueba, pudiendo cambiar el precio.
-  - Si no la exige, se ejecuta al instante.
+  - Si no la exige, las compras se ejecutan al instante.
+  - Las ventas de un jugador a una tienda siempre esperan al GM: su precio sale del valor del item,
+    que el jugador puede editar.
   - La ejecución (`TradeService.execute`) mueve stock, monedas e historial en una sola transacción.
     Los `@Version` evitan vender dos veces la última unidad.
+- **Reglas de la mesa.** El GM decide, desde el panel, si los jugadores pueden sumarse monedas solos.
+  Gastar siempre pueden.
+- **Seguridad.**
+  - Las escrituras a la API que no vienen de la propia app se rechazan, según `Sec-Fetch-Site` o
+    `Origin`. `SameSite` no alcanza, porque Foundry y los demás `*.srv.home.arpa` son "same-site".
+  - Ningún pedido puede pasar de 256 KB (`app.max-request-bytes`).
+  - El login del GM admite 5 fallos por IP y 30 por campaña cada 15 minutos. Solo se cree en
+    `X-Forwarded-For` cuando llega de loopback o de una red de Docker, es decir, de Funnel o de Caddy.
+  - Cantidades, precios y monedas tienen topes (ver `common/Limits.java`) y la aritmética no desborda.
+  - Todas las respuestas llevan CSP estricta, `X-Frame-Options: DENY`, `nosniff` y
+    `Referrer-Policy: no-referrer`. Por HTTPS llevan además HSTS.
 - **Precios.**
   - La tienda vende a `valor × sellMarkupPct` y compra a `valor × buybackPct` (por defecto 100 % y 50 %).
   - Al pagar se usan las monedas que hay y solo se rompe una moneda grande si hace falta dar cambio.

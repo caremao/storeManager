@@ -43,19 +43,22 @@ public class Purse {
      */
     public void apply(int dCopper, int dSilver, int dGold, int dPlatinum) {
         Purse next = copy();
-        next.copper += Math.max(dCopper, 0);
-        next.silver += Math.max(dSilver, 0);
-        next.gold += Math.max(dGold, 0);
-        next.platinum += Math.max(dPlatinum, 0);
+        next.copper = add(next.copper, Math.max(dCopper, 0));
+        next.silver = add(next.silver, Math.max(dSilver, 0));
+        next.gold = add(next.gold, Math.max(dGold, 0));
+        next.platinum = add(next.platinum, Math.max(dPlatinum, 0));
 
-        int[] spend = { Math.max(-dCopper, 0), Math.max(-dSilver, 0), Math.max(-dGold, 0), Math.max(-dPlatinum, 0) };
+        // En long: -Integer.MIN_VALUE no entra en un int.
+        long[] spend = { Math.max(-(long) dCopper, 0), Math.max(-(long) dSilver, 0), Math.max(-(long) dGold, 0),
+                Math.max(-(long) dPlatinum, 0) };
         if (next.copper >= spend[0] && next.silver >= spend[1] && next.gold >= spend[2] && next.platinum >= spend[3]) {
-            next.copper -= spend[0];
-            next.silver -= spend[1];
-            next.gold -= spend[2];
-            next.platinum -= spend[3];
+            next.copper = add(next.copper, -spend[0]);
+            next.silver = add(next.silver, -spend[1]);
+            next.gold = add(next.gold, -spend[2]);
+            next.platinum = add(next.platinum, -spend[3]);
         } else {
-            next.spend(new Purse(spend[0], spend[1], spend[2], spend[3]).totalCopper());
+            next.spend(spend[0] + spend[1] * Denomination.SILVER.copperValue()
+                    + spend[2] * Denomination.GOLD.copperValue() + spend[3] * Denomination.PLATINUM.copperValue());
         }
         copyFrom(next);
     }
@@ -94,10 +97,10 @@ public class Purse {
                 }
             }
         }
-        platinum = (int) counts[0];
-        gold = (int) counts[1];
-        silver = (int) counts[2];
-        copper = (int) counts[3];
+        platinum = add(0, counts[0]);
+        gold = add(0, counts[1]);
+        silver = add(0, counts[2]);
+        copper = add(0, counts[3]);
     }
 
     /** Cobra {@code amount} cp en oro, plata y cobre (sin platino, como se cotiza en 5e). */
@@ -105,9 +108,21 @@ public class Purse {
         if (amount < 0) {
             throw new IllegalArgumentException("amount < 0");
         }
-        gold += (int) (amount / 100);
-        silver += (int) ((amount % 100) / 10);
-        copper += (int) (amount % 10);
+        int newGold = add(gold, amount / 100);
+        int newSilver = add(silver, (amount % 100) / 10);
+        int newCopper = add(copper, amount % 10);
+        gold = newGold;
+        silver = newSilver;
+        copper = newCopper;
+    }
+
+    /** Suma sin desbordar: una bolsa con más de ~2.100 millones de una moneda se rechaza. */
+    private static int add(int current, long delta) {
+        try {
+            return Math.toIntExact(Math.addExact(current, delta));
+        } catch (ArithmeticException e) {
+            throw ApiException.badRequest("La bolsa no puede guardar tantas monedas");
+        }
     }
 
     /**
@@ -132,8 +147,9 @@ public class Purse {
             throw ApiException.badRequest("Cantidad muy pequeña para convertir a " + label(to));
         }
         long usedSource = converted * to.copperValue() / from.copperValue();
-        set(from, (int) (current - usedSource));
-        set(to, (int) (get(to) + converted));
+        int newTarget = add(get(to), converted);
+        set(from, add(current, -usedSource));
+        set(to, newTarget);
     }
 
     public int get(Denomination d) {

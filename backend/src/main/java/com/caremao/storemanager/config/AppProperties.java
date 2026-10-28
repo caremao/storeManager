@@ -11,13 +11,18 @@ public record AppProperties(
         boolean cookieSecure,
         Duration gmSessionTtl,
         Duration playerSessionTtl,
-        String campaignCreationKey) {
+        String campaignCreationKey,
+        long maxRequestBytes) {
 
+    /**
+     * El token va en el fragmento ({@code #}): el navegador no lo envía al servidor, así que no
+     * queda en los logs de Caddy ni de Funnel. La SPA lo lee y lo canjea por una cookie.
+     */
     public String joinUrl(String token) {
         String base = publicBaseUrl.endsWith("/")
                 ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
                 : publicBaseUrl;
-        return base + "/join/" + token;
+        return base + "/join#" + token;
     }
 
     public boolean campaignCreationKeyRequired() {

@@ -21,6 +21,8 @@ export function PlayerHome() {
 }
 
 function CharacterSheet({ character }: { character: Inventory }) {
+  const { data: me } = useMe()
+  const canAddCoins = me?.campaign.playersCanAddCoins ?? false
   const currency = useChangeCurrency(character.id)
   const { data: items = [] } = useItems(character.id)
   const { data: trades = [] } = useTrades()
@@ -37,7 +39,12 @@ function CharacterSheet({ character }: { character: Inventory }) {
         </Link>
       </div>
 
-      <PurseWidget title="Tu bolsa" purse={character.purse} onAdd={() => setCoins('add')} onSpend={() => setCoins('spend')} />
+      <PurseWidget
+        title="Tu bolsa"
+        purse={character.purse}
+        onAdd={canAddCoins ? () => setCoins('add') : undefined}
+        onSpend={() => setCoins('spend')}
+      />
 
       {pending.length > 0 && (
         <section className={`${card} p-4 sm:p-6`}>

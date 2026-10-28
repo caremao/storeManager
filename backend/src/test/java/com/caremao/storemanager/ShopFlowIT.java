@@ -62,20 +62,24 @@ class ShopFlowIT extends IntegrationTest {
     }
 
     @Test
-    void shopWithoutApprovalBuysBackImmediately() {
+    void sellingAlwaysWaitsForTheGmEvenInAShopWithoutApproval() {
         ApiClient gm = newGm();
         String shop = createShop(gm, "Casa de empeño", Map.of("visibleToPlayers", true,
                 "requiresApproval", false, "buybackPct", 50,
                 "purse", Map.of("copper", 0, "silver", 0, "gold", 100, "platinum", 0)));
         String[] mira = createCharacter(gm, "Mira", 0);
         ApiClient player = join(mira[1]);
+        // El valor lo pone el jugador: si la venta fuera automática podría inventarse dinero.
         String gem = addItem(player, mira[0], Map.of("name", "Ágata", "quantity", 2, "valueCp", 1_000));
 
         var sold = player.post("/api/shops/" + shop + "/trades", Map.of("kind", "SELL", "itemId", gem, "quantity", 1));
         assertThat(sold.status()).as(sold.body()).isEqualTo(201);
-        assertThat(sold.json().get("status").asString()).isEqualTo("APPROVED");
+        assertThat(sold.json().get("status").asString()).isEqualTo("PENDING");
         assertThat(sold.json().get("totalCp").asLong()).isEqualTo(500);
+        assertThat(purse(player, mira[0]).get("gold").asInt()).as("nada se movió todavía").isZero();
 
+        var approved = gm.post("/api/trades/" + sold.json().get("id").asString() + "/approve", null);
+        assertThat(approved.status()).as(approved.body()).isEqualTo(200);
         assertThat(purse(player, mira[0]).get("gold").asInt()).isEqualTo(5);
         assertThat(purse(gm, shop).get("totalCp").asLong()).isEqualTo(9_500);
         assertThat(findByName(gm.get("/api/inventories/" + shop + "/items").json(), "Ágata").get("quantity").asInt())

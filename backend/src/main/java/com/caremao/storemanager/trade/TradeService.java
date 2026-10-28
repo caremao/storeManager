@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.caremao.storemanager.auth.Actor;
 import com.caremao.storemanager.common.ApiException;
+import com.caremao.storemanager.common.Limits;
 import com.caremao.storemanager.events.CampaignEvent;
 import com.caremao.storemanager.history.HistoryAction;
 import com.caremao.storemanager.history.HistoryService;
@@ -55,7 +56,10 @@ public class TradeService {
         this.events = events;
     }
 
-    /** Un jugador pide comprar o vender. Si la tienda no exige aprobación y hay precio, se ejecuta ya. */
+    /**
+     * Un jugador pide comprar o vender. Una compra a una tienda sin aprobación y con precio se ejecuta
+     * ya; una venta siempre espera al GM, porque su precio sale de un valor que el jugador puede editar.
+     */
     @Transactional
     public TradeDto request(Actor actor, UUID shopId, TradeCreateRequest request) {
         if (actor.isGm()) {
@@ -71,9 +75,9 @@ public class TradeService {
                     .orElseThrow(() -> ApiException.notFound("Artículo"));
             requireStock(item, quantity);
             unit = Pricing.apply(item.getValueCp(), shop.getSellMarkupPct());
-            if (unit != null && character.getPurse().totalCopper() < Math.multiplyExact(unit, quantity)) {
+            if (unit != null && character.getPurse().totalCopper() < Pricing.multiply(unit, quantity)) {
                 throw new InsufficientFundsException(
-                        "No te alcanza: cuesta " + Pricing.format(Math.multiplyExact(unit, quantity)));
+                        "No te alcanza: cuesta " + Pricing.format(Pricing.multiply(unit, quantity)));
             }
         } else {
             item = items.findByIdAndInventoryId(request.itemId(), character.getId())
@@ -83,7 +87,7 @@ public class TradeService {
         }
         TradeRequest trade = trades.save(new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
                 item.getId(), item.getName(), request.kind(), quantity, unit, blankToNull(request.note())));
-        if (!shop.isRequiresApproval() && unit != null) {
+        if (request.kind() == TradeKind.BUY && !shop.isRequiresApproval() && unit != null) {
             execute(actor, trade, shop, character, unit);
         }
         publish(trade);
@@ -179,7 +183,7 @@ public class TradeService {
     private void execute(Actor actor, TradeRequest trade, Inventory shop, Inventory character, long unit) {
         trade.requirePending();
         int quantity = trade.getQuantity();
-        long total = Math.multiplyExact(unit, quantity);
+        long total = Pricing.multiply(unit, quantity);
         if (trade.getKind() == TradeKind.BUY) {
             Item stock = items.findByIdAndInventoryId(trade.getItemId(), shop.getId())
                     .orElseThrow(() -> ApiException.conflict("El artículo ya no está en la tienda"));
@@ -228,7 +232,12 @@ public class TradeService {
         if (existing == null) {
             items.save(source.copyTo(targetInventoryId, quantity));
         } else if (!existing.isUnlimitedStock()) {
-            existing.setQuantity(existing.getQuantity() + quantity);
+            long stacked = (long) existing.getQuantity() + quantity;
+            if (stacked > Limits.MAX_QUANTITY) {
+                throw ApiException.conflict("No caben más de " + Limits.MAX_QUANTITY + " unidades de "
+                        + existing.getName());
+            }
+            existing.setQuantity((int) stacked);
         }
     }
 
@@ -278,7 +287,7 @@ public class TradeService {
     }
 
     private static TradeDto toDto(TradeRequest t, String shopName, String characterName) {
-        Long total = t.getUnitPriceCp() == null ? null : t.getUnitPriceCp() * t.getQuantity();
+        Long total = t.getUnitPriceCp() == null ? null : Pricing.multiply(t.getUnitPriceCp(), t.getQuantity());
         return new TradeDto(t.getId(), t.getShopId(), shopName, t.getCharacterId(), characterName, t.getItemId(),
                 t.getItemName(), t.getKind(), t.getQuantity(), t.getUnitPriceCp(), total, t.getStatus(), t.getNote(),
                 t.getCreatedAt(), t.getResolvedAt());

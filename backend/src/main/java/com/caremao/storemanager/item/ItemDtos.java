@@ -4,6 +4,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import com.caremao.storemanager.common.Limits;
+
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -30,10 +34,10 @@ public final class ItemDtos {
             ItemRarity rarity,
             @Size(max = 20000) String description,
             @Size(max = 2000) String notes,
-            @PositiveOrZero Integer quantity,
+            @PositiveOrZero @Max(Limits.MAX_QUANTITY) Integer quantity,
             Boolean unlimitedStock,
-            @PositiveOrZero Double weight,
-            @PositiveOrZero Long valueCp,
+            @PositiveOrZero @DecimalMax("1000000") Double weight,
+            @PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long valueCp,
             @Size(max = 100) String srdIndex,
             Map<String, Object> properties) {
     }

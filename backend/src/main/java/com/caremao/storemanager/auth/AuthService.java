@@ -1,5 +1,6 @@
 package com.caremao.storemanager.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.caremao.storemanager.auth.AuthDtos.MeResponse;
 import com.caremao.storemanager.campaign.Campaign;
+import com.caremao.storemanager.campaign.CampaignDtos;
 import com.caremao.storemanager.campaign.CampaignDtos.CampaignDto;
 import com.caremao.storemanager.campaign.CampaignRepository;
 import com.caremao.storemanager.common.ApiException;
@@ -33,6 +35,7 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final LoginRateLimiter limiter;
     private final AppProperties props;
+    private final String dummyHash;
 
     public AuthService(AppSessionRepository sessions, CampaignRepository campaigns, InventoryRepository inventories,
             PasswordEncoder encoder, LoginRateLimiter limiter, AppProperties props) {
@@ -42,6 +45,7 @@ public class AuthService {
         this.encoder = encoder;
         this.limiter = limiter;
         this.props = props;
+        this.dummyHash = encoder.encode(Tokens.random(16));
     }
 
     @Transactional
@@ -50,16 +54,22 @@ public class AuthService {
         return new Login(token, props.gmSessionTtl(), new MeResponse(Role.GM, CampaignDto.of(campaign), null, null));
     }
 
+    /**
+     * Si la campaña no existe igual se compara contra un hash de relleno: así la respuesta tarda lo
+     * mismo y no delata qué campañas existen.
+     */
     @Transactional
     public Login gmLogin(String slug, String passphrase, String clientIp) {
-        String key = "gm:" + clientIp;
-        limiter.check(key);
+        limiter.check(clientIp, slug);
         Campaign campaign = campaigns.findBySlug(slug).orElse(null);
-        if (campaign == null || !encoder.matches(passphrase, campaign.getGmPassphraseHash())) {
-            limiter.recordFailure(key);
+        String hash = campaign != null ? campaign.getGmPassphraseHash() : dummyHash;
+        boolean hashable = passphrase.getBytes(StandardCharsets.UTF_8).length <= CampaignDtos.MAX_PASSPHRASE_BYTES;
+        boolean matches = hashable && encoder.matches(passphrase, hash);
+        if (campaign == null || !matches) {
+            limiter.recordFailure(clientIp, campaign == null ? null : campaign.getSlug());
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Campaña o contraseña incorrecta");
         }
-        limiter.reset(key);
+        limiter.reset(clientIp);
         return startGmSession(campaign);
     }
 

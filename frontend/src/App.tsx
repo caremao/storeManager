@@ -17,6 +17,7 @@ export default function App() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Home />} />
+          <Route path="/join" element={<Join />} />
           <Route path="/join/:token" element={<Join />} />
           <Route element={<RequireRole role="GM" />}>
             <Route path="/gm" element={<GmDashboard />} />

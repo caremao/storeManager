@@ -1,5 +1,7 @@
 package com.caremao.storemanager.item;
 
+import com.caremao.storemanager.common.ApiException;
+
 public final class Pricing {
 
     private Pricing() {
@@ -10,7 +12,16 @@ public final class Pricing {
         if (valueCp == null) {
             return null;
         }
-        return (valueCp * pct + 50) / 100;
+        return (multiply(valueCp, pct) + 50) / 100;
+    }
+
+    /** Precio × cantidad sin desbordar; con los topes de {@code Limits} nunca debería fallar. */
+    public static long multiply(long unitCp, long quantity) {
+        try {
+            return Math.multiplyExact(unitCp, quantity);
+        } catch (ArithmeticException e) {
+            throw ApiException.badRequest("El precio es demasiado grande");
+        }
     }
 
     /** 1250 → "12 po 5 pp" (abreviaturas del manual en español), para mensajes de error. */

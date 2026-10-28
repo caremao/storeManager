@@ -64,7 +64,8 @@ public class EventBroadcaster implements SmartLifecycle {
         if (campaign == null) {
             return;
         }
-        Map<String, Object> payload = Map.of("inventoryIds", event.inventoryIds(), "tradeIds", event.tradeIds());
+        Map<String, Object> payload = Map.of("inventoryIds", event.inventoryIds(), "tradeIds", event.tradeIds(),
+                "campaign", event.campaign());
         for (SseEmitter emitter : campaign) {
             send(campaign, emitter, SseEmitter.event().name("change").data(payload));
         }

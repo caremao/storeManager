@@ -3,6 +3,8 @@ package com.caremao.storemanager.trade;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.caremao.storemanager.common.Limits;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -28,7 +30,7 @@ public final class TradeDtos {
     }
 
     /** {@code unitPriceCp} opcional: el GM puede cambiar el precio (regateo) al aprobar. */
-    public record TradeApproveRequest(@PositiveOrZero Long unitPriceCp) {
+    public record TradeApproveRequest(@PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long unitPriceCp) {
     }
 
     public record TradeRejectRequest(@Size(max = 500) String note) {
@@ -40,6 +42,6 @@ public final class TradeDtos {
             @NotNull UUID characterId,
             @NotNull UUID itemId,
             @Min(1) @Max(10_000) int quantity,
-            @PositiveOrZero Long unitPriceCp) {
+            @PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long unitPriceCp) {
     }
 }

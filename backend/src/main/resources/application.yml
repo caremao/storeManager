@@ -19,8 +19,13 @@ spring:
 
 server:
   port: 8080
-  # Detrás de Caddy o Tailscale Funnel: respeta X-Forwarded-*
-  forward-headers-strategy: framework
+  # Detrás de Caddy o Tailscale Funnel. Tomcat (RemoteIpValve) solo cree en X-Forwarded-For/-Proto
+  # cuando el pedido llega desde un proxy de confianza: loopback (Funnel) o una red de Docker (Caddy).
+  # Un cliente que habla directo al puerto no puede hacerse pasar por otra IP.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: '127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1|::1|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}'
 
 management:
   endpoints:
@@ -34,10 +39,12 @@ springdoc:
 
 app:
   data-dir: ./data
-  # Base de los links de los QR. En THREE: la URL pública de Funnel.
+  # Base de los links de los QR. En THREE: la URL de Caddy (LAN) o la pública de Funnel.
   public-base-url: http://localhost:5173
   cookie-secure: false
   gm-session-ttl: 30d
   player-session-ttl: 180d
   # Si no está vacía, crear campañas exige esta clave.
   campaign-creation-key: ""
+  # Tope del cuerpo de cualquier pedido (256 KB): un item con descripción larga entra holgado.
+  max-request-bytes: 262144

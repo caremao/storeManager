@@ -7,12 +7,15 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.caremao.storemanager.auth.Actor;
 import com.caremao.storemanager.auth.AppSessionRepository;
 import com.caremao.storemanager.auth.Tokens;
+import com.caremao.storemanager.campaign.Campaign;
+import com.caremao.storemanager.campaign.CampaignRepository;
 import com.caremao.storemanager.common.ApiException;
 import com.caremao.storemanager.config.AppProperties;
 import com.caremao.storemanager.events.CampaignEvent;
@@ -31,14 +34,17 @@ public class InventoryService {
     private static final int TOKEN_BYTES = 16;
 
     private final InventoryRepository inventories;
+    private final CampaignRepository campaigns;
     private final AppSessionRepository sessions;
     private final HistoryService history;
     private final ApplicationEventPublisher events;
     private final AppProperties props;
 
-    public InventoryService(InventoryRepository inventories, AppSessionRepository sessions, HistoryService history,
-            ApplicationEventPublisher events, AppProperties props) {
+    public InventoryService(InventoryRepository inventories, CampaignRepository campaigns,
+            AppSessionRepository sessions, HistoryService history, ApplicationEventPublisher events,
+            AppProperties props) {
         this.inventories = inventories;
+        this.campaigns = campaigns;
         this.sessions = sessions;
         this.history = history;
         this.events = events;
@@ -151,6 +157,11 @@ public class InventoryService {
     @Transactional
     public InventoryDto changeCurrency(Actor actor, UUID id, CurrencyChangeRequest request) {
         Inventory inventory = requireWritable(actor, id);
+        boolean adds = request.copper() > 0 || request.silver() > 0 || request.gold() > 0 || request.platinum() > 0;
+        if (adds && !actor.isGm()
+                && !campaigns.findById(actor.campaignId()).map(Campaign::isPlayersCanAddCoins).orElse(false)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "En esta mesa, las monedas nuevas las da el GM");
+        }
         Map<String, Object> before = purseSnapshot(inventory.getPurse());
         inventory.getPurse().apply(request.copper(), request.silver(), request.gold(), request.platinum());
         logCurrency(actor, inventory, before, request.note());

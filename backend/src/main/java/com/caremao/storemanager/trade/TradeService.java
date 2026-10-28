@@ -85,8 +85,10 @@ public class TradeService {
             requireOwned(item, quantity, "Solo tienes ");
             unit = Pricing.apply(item.getValueCp(), shop.getBuybackPct());
         }
-        TradeRequest trade = trades.save(new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
-                item.getId(), item.getName(), request.kind(), quantity, unit, blankToNull(request.note())));
+        TradeRequest trade = new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
+                item.getId(), item.getName(), request.kind(), quantity, unit, blankToNull(request.note()));
+        trade.setPriceDenomination(item.getPriceDenomination());
+        trades.save(trade);
         if (request.kind() == TradeKind.BUY && !shop.isRequiresApproval() && unit != null) {
             execute(actor, trade, shop, character, unit);
         }
@@ -153,8 +155,10 @@ public class TradeService {
         if (unit == null) {
             throw ApiException.badRequest("Este artículo no tiene precio: indícalo");
         }
-        TradeRequest trade = trades.save(new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
-                item.getId(), item.getName(), request.kind(), request.quantity(), unit, null));
+        TradeRequest trade = new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
+                item.getId(), item.getName(), request.kind(), request.quantity(), unit, null);
+        trade.setPriceDenomination(item.getPriceDenomination());
+        trades.save(trade);
         execute(actor, trade, shop, character, unit);
         publish(trade);
         return toDto(trade, shop.getName(), character.getName());
@@ -218,6 +222,7 @@ public class TradeService {
         details.put("quantity", quantity);
         details.put("unitPriceCp", unit);
         details.put("totalCp", total);
+        details.put("priceDenomination", trade.getPriceDenomination() == null ? null : trade.getPriceDenomination().name());
         details.put("characterName", character.getName());
         history.log(actor, HistoryAction.TRADE_EXECUTED, shop, character, trade.getItemName(), details);
     }
@@ -289,8 +294,8 @@ public class TradeService {
     private static TradeDto toDto(TradeRequest t, String shopName, String characterName) {
         Long total = t.getUnitPriceCp() == null ? null : Pricing.multiply(t.getUnitPriceCp(), t.getQuantity());
         return new TradeDto(t.getId(), t.getShopId(), shopName, t.getCharacterId(), characterName, t.getItemId(),
-                t.getItemName(), t.getKind(), t.getQuantity(), t.getUnitPriceCp(), total, t.getStatus(), t.getNote(),
-                t.getCreatedAt(), t.getResolvedAt());
+                t.getItemName(), t.getKind(), t.getQuantity(), t.getUnitPriceCp(), total, t.getPriceDenomination(),
+                t.getStatus(), t.getNote(), t.getCreatedAt(), t.getResolvedAt());
     }
 
     private static String blankToNull(String s) {

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.caremao.storemanager.common.Limits;
+import com.caremao.storemanager.inventory.Denomination;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -18,7 +19,7 @@ public final class TradeDtos {
 
     public record TradeDto(UUID id, UUID shopId, String shopName, UUID characterId, String characterName,
             UUID itemId, String itemName, TradeKind kind, int quantity, Long unitPriceCp, Long totalCp,
-            TradeStatus status, String note, Instant createdAt, Instant resolvedAt) {
+            Denomination priceDenomination, TradeStatus status, String note, Instant createdAt, Instant resolvedAt) {
     }
 
     /** Lo que pide un jugador desde el mostrador. */

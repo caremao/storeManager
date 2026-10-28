@@ -1,5 +1,5 @@
 import type { HistoryEntry } from '../../api/types'
-import { formatCp } from '../../lib/coins'
+import { formatMoney, type Denomination } from '../../lib/coins'
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'nombre',
@@ -22,7 +22,7 @@ type Changes = Record<string, { old: unknown; new: unknown }>
 
 function show(field: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
-  if (field === 'valueCp') return formatCp(Number(value))
+  if (field === 'valueCp') return formatMoney(Number(value))
   if (typeof value === 'boolean') return value ? 'sí' : 'no'
   const text = String(value)
   return text.length > 30 ? `${text.slice(0, 30)}…` : text
@@ -58,7 +58,7 @@ export function describe(entry: HistoryEntry): { text: string; detail: string | 
     case 'TRADE_EXECUTED': {
       const who = (d.characterName as string) ?? 'Alguien'
       const what = `${d.quantity}× ${entry.entityName}`
-      const price = formatCp(Number(d.totalCp))
+      const price = formatMoney(Number(d.totalCp), d.priceDenomination as Denomination | null)
       return {
         text: d.kind === 'SELL'
           ? `${who} vendió ${what} a ${where} por ${price}`

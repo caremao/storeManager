@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import { FlaskConical, Package, ScrollText, Sparkles, Sword } from 'lucide-react'
 import type { Item, ItemType } from '../../api/types'
-import { formatCp } from '../../lib/coins'
+import { Money } from '../ui/Money'
 import { RARITY_COLORS, RARITY_LABELS, TYPE_LABELS, keyStat } from './utils'
 
 const TYPE_ICONS: Record<ItemType, ComponentType<{ className?: string }>> = {
@@ -65,7 +65,7 @@ export function ItemCard({ item, onClick, price, showStock, footer }: ItemCardPr
               {stat && <span className="text-xs text-gray-400">· {stat}</span>}
             </div>
             {price !== undefined && (
-              <p className="mt-2 text-sm font-semibold text-yellow-400">{formatCp(price)}</p>
+              <p className="mt-2"><Money cp={price} denomination={item.priceDenomination} /></p>
             )}
           </div>
         </div>

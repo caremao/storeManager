@@ -4,6 +4,7 @@ import type {
   Campaign,
   CreateInventoryInput,
   CurrencyChange,
+  Denomination,
   HistoryPage,
   Inventory,
   InventoryKind,
@@ -169,6 +170,18 @@ export function useChangeCurrency(id: string) {
   return useMutation({
     mutationFn: async (body: CurrencyChange) =>
       (await api.post<Inventory>(`/api/inventories/${id}/currency`, body)).data,
+    onSuccess: (inv) => {
+      qc.setQueryData(keys.inventory(id), inv)
+      invalidateInventory(qc, id)
+    },
+  })
+}
+
+export function useConvertCurrency(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { from: Denomination; to: Denomination; amount: number }) =>
+      (await api.post<Inventory>(`/api/inventories/${id}/currency/convert`, body)).data,
     onSuccess: (inv) => {
       qc.setQueryData(keys.inventory(id), inv)
       invalidateInventory(qc, id)

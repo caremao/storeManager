@@ -1,5 +1,9 @@
 // Espejo de los DTO del backend (records en *Dtos.java). Los campos `| null` siempre vienen en el JSON.
 
+import type { Denomination } from '../lib/coins'
+
+export type { Denomination }
+
 export type Role = 'GM' | 'PLAYER'
 export type InventoryKind = 'SHOP' | 'CHARACTER' | 'PARTY'
 export type ItemType = 'EQUIPMENT' | 'POTION' | 'SCROLL' | 'CONSUMABLE' | 'MISC'
@@ -101,6 +105,8 @@ export interface Item {
   valueCp: number | null
   /** Lo que cobra la tienda (valor × recargo); null fuera de tiendas o sin precio. */
   priceCp: number | null
+  /** Moneda en que se fijó el precio; null = oro. */
+  priceDenomination: Denomination | null
   srdIndex: string | null
   properties: Record<string, unknown> | null
   updatedAt: string
@@ -117,6 +123,7 @@ export interface ItemInput {
   unlimitedStock: boolean
   weight: number | null
   valueCp: number | null
+  priceDenomination: Denomination | null
   srdIndex: string | null
   properties: Record<string, unknown> | null
 }
@@ -133,6 +140,7 @@ export interface Trade {
   quantity: number
   unitPriceCp: number | null
   totalCp: number | null
+  priceDenomination: Denomination | null
   status: TradeStatus
   note: string | null
   createdAt: string

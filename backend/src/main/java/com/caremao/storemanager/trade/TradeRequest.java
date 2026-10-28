@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.caremao.storemanager.common.ApiException;
+import com.caremao.storemanager.inventory.Denomination;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -34,6 +35,9 @@ public class TradeRequest {
     private int quantity;
     /** Null si el item no tiene precio: el GM lo fija al aprobar. */
     private Long unitPriceCp;
+    /** Moneda en que está fijado el precio del item, para mostrarlo igual. */
+    @Enumerated(EnumType.STRING)
+    private Denomination priceDenomination;
 
     @Enumerated(EnumType.STRING)
     private TradeStatus status = TradeStatus.PENDING;
@@ -114,6 +118,14 @@ public class TradeRequest {
 
     public Long getUnitPriceCp() {
         return unitPriceCp;
+    }
+
+    public Denomination getPriceDenomination() {
+        return priceDenomination;
+    }
+
+    void setPriceDenomination(Denomination priceDenomination) {
+        this.priceDenomination = priceDenomination;
     }
 
     public TradeStatus getStatus() {

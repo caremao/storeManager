@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { AlertTriangle, Pencil, Trash2, X } from 'lucide-react'
 import type { Item } from '../../api/types'
-import { formatCp } from '../../lib/coins'
+import { Money } from '../ui/Money'
 import { dangerButton, dangerSolidButton, primaryButton, secondaryButton } from '../ui/styles'
 import { ItemIcon } from './ItemCard'
 import { PROPERTY_LABELS, RARITY_COLORS, RARITY_LABELS, TYPE_LABELS, formatProperty } from './utils'
@@ -85,12 +85,12 @@ export function ItemDetail({ item, onClose, onEdit, onDelete, actions, notesLabe
             )}
             <div>
               <dt className="text-sm text-gray-400">Valor</dt>
-              <dd className="font-medium text-gray-100">{formatCp(item.valueCp)}</dd>
+              <dd><Money cp={item.valueCp} denomination={item.priceDenomination} /></dd>
             </div>
             {item.priceCp !== null && (
               <div>
                 <dt className="text-sm text-gray-400">Precio en tienda</dt>
-                <dd className="font-medium text-yellow-400">{formatCp(item.priceCp)}</dd>
+                <dd><Money cp={item.priceCp} denomination={item.priceDenomination} /></dd>
               </div>
             )}
           </dl>

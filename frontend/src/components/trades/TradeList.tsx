@@ -3,9 +3,11 @@ import { Check, X } from 'lucide-react'
 import { errorMessage } from '../../api/client'
 import { useApproveTrade, useCancelTrade, useRejectTrade } from '../../api/hooks'
 import type { Trade, TradeStatus } from '../../api/types'
-import { cpToGp, formatCp, gpToCp } from '../../lib/coins'
+import { moneyValue, moneyValueToCp } from '../../lib/coins'
 import { ErrorBox } from '../ui/Feedback'
-import { input, secondaryButton, smallButton, successButton } from '../ui/styles'
+import { Money } from '../ui/Money'
+import { MoneyInput } from '../ui/MoneyInput'
+import { secondaryButton, smallButton, successButton } from '../ui/styles'
 
 const STATUS: Record<TradeStatus, { label: string; className: string }> = {
   PENDING: { label: 'Pendiente', className: 'bg-yellow-900/40 text-yellow-300' },
@@ -40,7 +42,7 @@ function TradeRow({ trade, mode, onError }: { trade: Trade; mode: 'gm' | 'player
   const approve = useApproveTrade()
   const reject = useRejectTrade()
   const cancel = useCancelTrade()
-  const [priceGp, setPriceGp] = useState(String(cpToGp(trade.unitPriceCp)))
+  const [price, setPrice] = useState(() => moneyValue(trade.unitPriceCp, trade.priceDenomination))
   const busy = approve.isPending || reject.isPending || cancel.isPending
   const status = STATUS[trade.status]
   const verb = trade.kind === 'BUY' ? 'compra' : 'vende'
@@ -56,9 +58,13 @@ function TradeRow({ trade, mode, onError }: { trade: Trade; mode: 'gm' | 'player
   }
 
   const approveWithPrice = () => {
-    const price = priceGp.trim() === '' ? undefined : gpToCp(parseFloat(priceGp.replace(',', '.')))
-    const changed = price !== undefined && price !== trade.unitPriceCp
-    return run(() => approve.mutateAsync({ id: trade.id, unitPriceCp: changed ? price : undefined }))
+    const cp = moneyValueToCp(price)
+    if (Number.isNaN(cp)) {
+      onError('El precio tiene que ser un número')
+      return
+    }
+    const changed = cp !== null && cp !== trade.unitPriceCp
+    return run(() => approve.mutateAsync({ id: trade.id, unitPriceCp: changed ? cp : undefined }))
   }
 
   return (
@@ -70,19 +76,23 @@ function TradeRow({ trade, mode, onError }: { trade: Trade; mode: 'gm' | 'player
         </p>
         <span className={`text-xs px-2 py-0.5 rounded ${status.className}`}>{status.label}</span>
       </div>
-      <p className="text-sm text-gray-400 mt-1">
-        {trade.unitPriceCp === null
-          ? 'Sin precio: lo fija el GM'
-          : `${formatCp(trade.unitPriceCp)} c/u · total ${formatCp(trade.totalCp)}`}
-        {trade.note && ` · «${trade.note}»`}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-400 mt-1">
+        {trade.unitPriceCp === null ? (
+          <span>Sin precio: lo fija el GM</span>
+        ) : (
+          <>
+            <Money cp={trade.unitPriceCp} denomination={trade.priceDenomination} size="sm" /> c/u · total
+            <Money cp={trade.totalCp} denomination={trade.priceDenomination} size="sm" />
+          </>
+        )}
+        {trade.note && <span>· «{trade.note}»</span>}
+      </div>
 
       {trade.status === 'PENDING' && mode === 'gm' && (
         <div className="flex flex-wrap items-end gap-2 mt-3">
-          <div className="w-32">
-            <label className="block text-xs text-gray-400 mb-1" htmlFor={`price-${trade.id}`}>Precio c/u (po)</label>
-            <input id={`price-${trade.id}`} type="number" inputMode="decimal" min={0} step="0.01" value={priceGp}
-              onChange={(e) => setPriceGp(e.target.value)} className={`${input} py-1.5`} />
+          <div className="w-44">
+            <label className="block text-xs text-gray-400 mb-1" htmlFor={`price-${trade.id}`}>Precio c/u</label>
+            <MoneyInput id={`price-${trade.id}`} value={price} onChange={setPrice} compact />
           </div>
           <button type="button" disabled={busy} onClick={approveWithPrice} className={`${successButton} ${smallButton}`}>
             <Check className="w-4 h-4" />

@@ -9,8 +9,9 @@ import { ItemsList } from '../../components/items/ItemsList'
 import { QuantityAction } from '../../components/trades/QuantityAction'
 import { TradeList } from '../../components/trades/TradeList'
 import { EmptyState, ErrorBox, Spinner, SuccessBox } from '../../components/ui/Feedback'
+import { Money } from '../../components/ui/Money'
 import { card } from '../../components/ui/styles'
-import { applyPct, formatCp } from '../../lib/coins'
+import { applyPct, formatMoney } from '../../lib/coins'
 
 /** El mostrador: el stock de la tienda con sus precios y lo que el jugador le puede vender. */
 export function ShopCounter() {
@@ -81,7 +82,7 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
         <h1 className="text-3xl font-bold text-gray-100">{shop.name}</h1>
         {shop.description && <p className="mt-2 text-gray-300 whitespace-pre-wrap">{shop.description}</p>}
         <p className="mt-3 text-gray-400">
-          Tu bolsa: <span className="font-semibold text-yellow-400">{formatCp(wallet)}</span>
+          Tu bolsa: <Money cp={wallet} />
           {shop.requiresApproval && ' · el GM aprueba cada compra'}
         </p>
       </section>
@@ -111,7 +112,9 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
               blockedReason={buyBlocked(item)}
               busy={request.isPending}
               onConfirm={(q) => trade('BUY', item, q)}
-              summary={(q) => (item.priceCp === null ? 'el GM fija el precio' : `total ${formatCp(item.priceCp * q)}`)}
+              summary={(q) => (item.priceCp === null
+                ? 'el GM fija el precio'
+                : `total ${formatMoney(item.priceCp * q, item.priceDenomination)}`)}
             />
           )}
         />
@@ -135,7 +138,9 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
                 actionLabel="Ofrecer"
                 busy={request.isPending}
                 onConfirm={(q) => trade('SELL', item, q)}
-                summary={(q) => (offer === null ? 'el GM fija el precio' : `recibes ${formatCp(offer * q)}`)}
+                summary={(q) => (offer === null
+                  ? 'el GM fija el precio'
+                  : `recibes ${formatMoney(offer * q, item.priceDenomination)}`)}
               />
             )
           }}

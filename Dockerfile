@@ -6,7 +6,8 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY frontend/ ./
-RUN npm run build
+# Si el lint o los tests fallan, la imagen no se construye.
+RUN npm run lint && npm test && npm run build
 
 # 2) Backend con la SPA dentro (Spring Boot la sirve desde /static)
 FROM maven:3.9-amazoncorretto-21 AS backend

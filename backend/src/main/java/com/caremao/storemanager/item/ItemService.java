@@ -100,7 +100,7 @@ public class ItemService {
                 shop && !actor.isGm() ? null : item.getNotes(),
                 item.getQuantity(), item.isUnlimitedStock(), item.getWeight(), item.getValueCp(),
                 shop ? Pricing.apply(item.getValueCp(), inventory.getSellMarkupPct()) : null,
-                item.getSrdIndex(), item.getProperties(), item.getUpdatedAt());
+                item.getPriceDenomination(), item.getSrdIndex(), item.getProperties(), item.getUpdatedAt());
     }
 
     private static void apply(Inventory inventory, Item item, ItemRequest request) {
@@ -122,6 +122,7 @@ public class ItemService {
         item.setUnlimitedStock(inventory.isShop() && Boolean.TRUE.equals(request.unlimitedStock()));
         item.setWeight(request.weight());
         item.setValueCp(request.valueCp());
+        item.setPriceDenomination(request.priceDenomination());
         if (request.srdIndex() != null) {
             item.setSrdIndex(request.srdIndex());
         }

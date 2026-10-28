@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.caremao.storemanager.common.MapJsonConverter;
+import com.caremao.storemanager.inventory.Denomination;
 
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -46,6 +47,9 @@ public class Item {
     private Double weight;
     /** Precio base en piezas de cobre; null si nadie lo fijó. */
     private Long valueCp;
+    /** Moneda en que se fijó el precio, para mostrarlo igual ("3 pp"); null = oro. */
+    @Enumerated(EnumType.STRING)
+    private Denomination priceDenomination;
     private String srdIndex;
 
     @Convert(converter = MapJsonConverter.class)
@@ -80,6 +84,7 @@ public class Item {
         copy.quantity = quantity;
         copy.weight = weight;
         copy.valueCp = valueCp;
+        copy.priceDenomination = priceDenomination;
         copy.srdIndex = srdIndex;
         copy.properties = properties == null ? null : new LinkedHashMap<>(properties);
         return copy;
@@ -98,6 +103,7 @@ public class Item {
         s.put("unlimitedStock", unlimitedStock);
         s.put("weight", weight);
         s.put("valueCp", valueCp);
+        s.put("priceDenomination", priceDenomination == null ? null : priceDenomination.name());
         return s;
     }
 
@@ -187,6 +193,14 @@ public class Item {
 
     public void setValueCp(Long valueCp) {
         this.valueCp = valueCp;
+    }
+
+    public Denomination getPriceDenomination() {
+        return priceDenomination;
+    }
+
+    public void setPriceDenomination(Denomination priceDenomination) {
+        this.priceDenomination = priceDenomination;
     }
 
     public String getSrdIndex() {

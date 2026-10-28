@@ -8,7 +8,7 @@ import { HistoryPanel } from '../../components/history/HistoryPanel'
 import { TradeList } from '../../components/trades/TradeList'
 import { ErrorBox, Spinner } from '../../components/ui/Feedback'
 import { card, primaryButton, smallButton } from '../../components/ui/styles'
-import { formatCp } from '../../lib/coins'
+import { Money } from '../../components/ui/Money'
 import { InventoryFormModal } from './InventoryFormModal'
 
 export function GmDashboard() {
@@ -83,9 +83,9 @@ function InventorySection({ title, kind, items, onCreate }: {
                   </p>
                 </div>
                 {kind === 'SHOP' ? <ShopBadges shop={inv} /> : (
-                  <span className="flex items-center gap-1 text-sm text-yellow-400 whitespace-nowrap">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
                     <User className="w-4 h-4 text-gray-400" />
-                    {formatCp(inv.purse?.totalCp ?? 0)}
+                    <Money cp={inv.purse?.totalCp ?? 0} size="sm" />
                   </span>
                 )}
               </Link>

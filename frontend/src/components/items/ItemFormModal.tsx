@@ -4,9 +4,16 @@ import { errorMessage } from '../../api/client'
 import { useSrdSearch } from '../../api/hooks'
 import type { Item, ItemInput, ItemRarity, ItemType, SrdItem } from '../../api/types'
 import { useDebounce } from '../../hooks/useDebounce'
-import { cpToGp, formatCp, gpToCp } from '../../lib/coins'
+import {
+  formatMoney,
+  moneyValue,
+  moneyValueToCp,
+  naturalDenomination,
+  type MoneyValue,
+} from '../../lib/coins'
 import { ErrorBox } from '../ui/Feedback'
 import { Modal } from '../ui/Modal'
+import { MoneyInput } from '../ui/MoneyInput'
 import { input, label, primaryButton, secondaryButton } from '../ui/styles'
 import { ITEM_RARITIES, ITEM_TYPES, RARITY_LABELS, TYPE_LABELS } from './utils'
 
@@ -30,7 +37,7 @@ interface FormState {
   quantity: string
   unlimitedStock: boolean
   weight: string
-  valueGp: string
+  value: MoneyValue
   srdIndex: string | null
   properties: Record<string, unknown> | null
 }
@@ -46,7 +53,7 @@ function fromItem(item?: Item): FormState {
     quantity: String(item?.quantity ?? 1),
     unlimitedStock: item?.unlimitedStock ?? false,
     weight: item?.weight === null || item?.weight === undefined ? '' : String(item.weight),
-    valueGp: String(cpToGp(item?.valueCp)),
+    value: moneyValue(item?.valueCp, item?.priceDenomination),
     srdIndex: item?.srdIndex ?? null,
     properties: item?.properties ?? null,
   }
@@ -105,7 +112,7 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
       category: srd.category ?? '',
       description: cleanSrdDescription(srd.description),
       weight: srd.weight === null ? '' : String(srd.weight),
-      valueGp: srd.valueCp === null ? f.valueGp : String(cpToGp(srd.valueCp)),
+      value: srd.valueCp === null ? f.value : moneyValue(srd.valueCp, naturalDenomination(srd.valueCp)),
       srdIndex: srd.index,
       properties: srd.properties,
     }))
@@ -121,7 +128,8 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
     if (Number.isNaN(quantity) || quantity < (forShop ? 0 : 1)) {
       return setError(forShop ? 'La cantidad no puede ser negativa' : 'La cantidad mínima es 1')
     }
-    const value = form.valueGp.trim() === '' ? null : gpToCp(parseFloat(form.valueGp.replace(',', '.')))
+    const value = moneyValueToCp(form.value)
+    if (Number.isNaN(value)) return setError('El valor tiene que ser un número (por ejemplo 2,5)')
     const weight = form.weight.trim() === '' ? null : parseFloat(form.weight.replace(',', '.'))
     setSaving(true)
     try {
@@ -135,7 +143,8 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
         quantity,
         unlimitedStock: forShop && form.unlimitedStock,
         weight: weight !== null && !Number.isNaN(weight) ? weight : null,
-        valueCp: value !== null && !Number.isNaN(value) ? value : null,
+        valueCp: value,
+        priceDenomination: form.value.denomination,
         srdIndex: form.srdIndex,
         properties: form.properties,
       })
@@ -164,7 +173,6 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
             setShowResults(true)
           }}
           onFocus={() => setShowResults(true)}
-          placeholder="longsword, potion of healing, rope…"
           className={`${input} pl-10 pr-10`}
         />
         {isFetching && (
@@ -189,7 +197,7 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
               <div className="text-sm text-gray-400">
                 {srd.category}
                 {` · ${srd.rarity ? RARITY_LABELS[srd.rarity] : 'rareza variable'}`}
-                {srd.valueCp !== null && ` · ${formatCp(srd.valueCp)}`}
+                {srd.valueCp !== null && ` · ${formatMoney(srd.valueCp, naturalDenomination(srd.valueCp))}`}
               </div>
             </button>
           ))}
@@ -250,24 +258,23 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
         <div>
           <label htmlFor="item-category" className={label}>Categoría</label>
           <input id="item-category" value={form.category} onChange={(e) => set('category', e.target.value)}
-            placeholder="Arma, Armadura, Equipo de aventurero…" className={input} />
+            className={input} />
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="item-quantity" className={label}>Cantidad</label>
             <input id="item-quantity" type="number" inputMode="numeric" min={forShop ? 0 : 1} value={form.quantity}
               disabled={form.unlimitedStock} onChange={(e) => set('quantity', e.target.value)} className={input} />
           </div>
           <div>
-            <label htmlFor="item-value" className={label}>Valor (po)</label>
-            <input id="item-value" type="number" inputMode="decimal" min={0} step="0.01" value={form.valueGp}
-              onChange={(e) => set('valueGp', e.target.value)} className={input} />
-          </div>
-          <div>
             <label htmlFor="item-weight" className={label}>Peso (lb)</label>
             <input id="item-weight" type="number" inputMode="decimal" min={0} step="0.1" value={form.weight}
               onChange={(e) => set('weight', e.target.value)} className={input} />
           </div>
+        </div>
+        <div>
+          <label htmlFor="item-value" className={label}>Valor</label>
+          <MoneyInput id="item-value" value={form.value} onChange={(v) => set('value', v)} />
         </div>
         {forShop && (
           <label className="flex items-center gap-2 text-gray-300">

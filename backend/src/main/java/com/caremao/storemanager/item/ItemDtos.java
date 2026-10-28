@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.caremao.storemanager.common.Limits;
+import com.caremao.storemanager.inventory.Denomination;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Max;
@@ -23,7 +24,8 @@ public final class ItemDtos {
      */
     public record ItemDto(UUID id, UUID inventoryId, String name, ItemType type, String category, ItemRarity rarity,
             String description, String notes, int quantity, boolean unlimitedStock, Double weight, Long valueCp,
-            Long priceCp, String srdIndex, Map<String, Object> properties, Instant updatedAt) {
+            Long priceCp, Denomination priceDenomination, String srdIndex, Map<String, Object> properties,
+            Instant updatedAt) {
     }
 
     /** Alta o reemplazo completo de un item (el formulario siempre manda todos los campos). */
@@ -38,6 +40,7 @@ public final class ItemDtos {
             Boolean unlimitedStock,
             @PositiveOrZero @DecimalMax("1000000") Double weight,
             @PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long valueCp,
+            Denomination priceDenomination,
             @Size(max = 100) String srdIndex,
             Map<String, Object> properties) {
     }

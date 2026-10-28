@@ -50,7 +50,7 @@ public class ItemCsvImporter {
     static final List<String> COLUMNS = List.of("nombre", "tipo", "rareza", "categoria", "cantidad", "valor",
             "moneda", "valor_percibido", "valor_revelado", "negociable", "oculto", "stock_ilimitado", "peso",
             "descripcion", "notas", "srd");
-    static final int MAX_ROWS = 1000;
+    static final int MAX_ROWS = 5000;
 
     /**
      * {@code line}: la línea del archivo donde empieza la fila (0 si no se sabe); {@code row}: la fila

@@ -66,6 +66,10 @@ function GmLoginForm() {
   )
 }
 
+/** Igual que CampaignDtos.NAME_PATTERN: el nombre es también lo que el GM escribe para entrar. */
+const CAMPAIGN_NAME = /^[A-Za-z0-9]+$/
+const MAX_CAMPAIGN_NAME = 48
+
 function CreateCampaignForm() {
   const create = useCreateCampaign()
   const { data: config } = useServerConfig()
@@ -75,14 +79,16 @@ function CreateCampaignForm() {
   const [confirm, setConfirm] = useState('')
   const [creationKey, setCreationKey] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const nameOk = CAMPAIGN_NAME.test(name)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLocalError(null)
+    if (!nameOk) return setLocalError('El nombre solo puede tener letras sin tilde y números, sin espacios')
     if (passphrase.length < 8) return setLocalError('La contraseña debe tener al menos 8 caracteres')
     if (passphrase !== confirm) return setLocalError('Las contraseñas no coinciden')
     try {
-      await create.mutateAsync({ name: name.trim(), passphrase, creationKey: creationKey || undefined })
+      await create.mutateAsync({ name, passphrase, creationKey: creationKey || undefined })
       navigate('/gm', { replace: true })
     } catch {
       // el error se muestra abajo
@@ -97,7 +103,12 @@ function CreateCampaignForm() {
       {error && <ErrorBox>{error}</ErrorBox>}
       <div>
         <label htmlFor="new-name" className={label}>Nombre</label>
-        <input id="new-name" value={name} onChange={(e) => setName(e.target.value)} className={input} />
+        <input id="new-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_CAMPAIGN_NAME}
+          autoCapitalize="none" autoComplete="off" spellCheck={false} placeholder="Gemflower"
+          aria-invalid={name !== '' && !nameOk} aria-describedby="new-name-hint" className={input} />
+        <p id="new-name-hint" className={`mt-1 text-sm ${name !== '' && !nameOk ? 'text-red-400' : 'text-gray-400'}`}>
+          Una sola palabra: letras sin tilde y números, sin espacios. Es lo que escribirás en «Campaña» para entrar.
+        </p>
       </div>
       <div>
         <label htmlFor="new-pass" className={label}>Contraseña del GM</label>
@@ -115,7 +126,7 @@ function CreateCampaignForm() {
           <input id="new-key" type="password" value={creationKey} onChange={(e) => setCreationKey(e.target.value)} className={input} />
         </div>
       )}
-      <button type="submit" disabled={create.isPending || !name.trim()} className={`${secondaryButton} w-full`}>
+      <button type="submit" disabled={create.isPending || !nameOk} className={`${secondaryButton} w-full`}>
         {create.isPending ? 'Creando…' : 'Crear y entrar'}
       </button>
     </form>

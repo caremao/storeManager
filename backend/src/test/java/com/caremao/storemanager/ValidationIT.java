@@ -6,7 +6,6 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +20,7 @@ class ValidationIT extends IntegrationTest {
 
     @Test
     void passphrasesLongerThanBcryptAcceptsAreRejected() {
-        String name = "Larga " + UUID.randomUUID();
+        String name = uniqueCampaignName("Larga");
         assertThat(browser().post("/api/campaigns", Map.of("name", name, "passphrase", "a".repeat(73))).status())
                 .isEqualTo(400);
         var accents = browser().post("/api/campaigns", Map.of("name", name, "passphrase", "ñ".repeat(40)));
@@ -31,6 +30,35 @@ class ValidationIT extends IntegrationTest {
         ApiClient gm = newGm();
         assertThat(browser().post("/api/campaigns/" + slugOf(gm) + "/gm-login", Map.of("passphrase", "b".repeat(150)))
                 .status()).isEqualTo(401);
+    }
+
+    @Test
+    void campaignNamesAreOneWordOfLettersAndNumbers() {
+        for (String bad : List.of("Los Gemflower", "Peñas", "mesa-1", "  ", "a".repeat(49))) {
+            var response = browser().post("/api/campaigns", Map.of("name", bad, "passphrase", "secreto-largo"));
+            assertThat(response.status()).as(bad).isEqualTo(400);
+        }
+
+        String name = uniqueCampaignName("Gemflower");
+        var created = browser().post("/api/campaigns", Map.of("name", name, "passphrase", "secreto-largo"));
+        assertThat(created.status()).as(created.body()).isEqualTo(201);
+        assertThat(created.json().get("campaign").get("slug").asString())
+                .as("el GM entra escribiendo el nombre").isEqualTo(name.toLowerCase());
+
+        var again = browser().post("/api/campaigns", Map.of("name", name.toUpperCase(), "passphrase", "secreto-largo"));
+        assertThat(again.status()).as("sin un -2 en silencio").isEqualTo(409);
+        assertThat(again.json().get("detail").asString()).contains("Ya existe");
+    }
+
+    @Test
+    void categoryIsTrimmedAndBlankMeansNone() {
+        ApiClient gm = newGm();
+        String shop = createShop(gm, "Bazar", Map.of());
+        String items = "/api/inventories/" + shop + "/items";
+        assertThat(gm.post(items, Map.of("name", "Daga", "category", "  Armas ")).json().get("category").asString())
+                .isEqualTo("Armas");
+        assertThat(gm.post(items, Map.of("name", "Piedra", "category", "   ")).json().get("category").isNull()).isTrue();
+        assertThat(gm.post(items, Map.of("name", "x", "category", "c".repeat(101))).status()).isEqualTo(400);
     }
 
     @Test

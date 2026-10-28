@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { EyeOff, FlaskConical, Package, ScrollText, Sparkles, Sword } from 'lucide-react'
+import { EyeOff, FlaskConical, Package, ScrollText, Sparkles, Sword, Tag } from 'lucide-react'
 import type { Item, ItemType } from '../../api/types'
 import { Money } from '../ui/Money'
 import { RARITY_COLORS, RARITY_LABELS, TYPE_LABELS, keyStat } from './utils'
@@ -22,6 +22,7 @@ export type CardItem = Pick<
   Item,
   | 'name'
   | 'type'
+  | 'category'
   | 'rarity'
   | 'quantity'
   | 'unlimitedStock'
@@ -78,7 +79,12 @@ export function ItemCard({ item, onClick, price, showStock, footer }: ItemCardPr
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <span className={`text-xs px-2 py-0.5 rounded ${rarity.badge}`}>{RARITY_LABELS[item.rarity]}</span>
               <span className="text-xs text-gray-400">{TYPE_LABELS[item.type]}</span>
-              {stat && <span className="text-xs text-gray-400">· {stat}</span>}
+              {item.category && (
+                <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-gray-700/70 text-gray-300">
+                  <Tag className="w-3 h-3" /> {item.category}
+                </span>
+              )}
+              {stat &&<span className="text-xs text-gray-400">· {stat}</span>}
               {item.hidden && (
                 <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-yellow-900/40 text-yellow-300">
                   <EyeOff className="w-3 h-3" /> Oculto

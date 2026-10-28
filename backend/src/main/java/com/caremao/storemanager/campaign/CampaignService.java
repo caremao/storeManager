@@ -46,7 +46,11 @@ public class CampaignService {
         }
         requireHashablePassphrase(request.passphrase());
         boolean customSlug = request.slug() != null && !request.slug().isBlank();
-        String slug = uniqueSlug(customSlug ? request.slug() : request.name());
+        String slug = customSlug ? uniqueSlug(request.slug()) : slugify(request.name());
+        // Sin slug propio, el GM entra escribiendo el nombre: un "-2" agregado en silencio no le serviría.
+        if (!customSlug && campaigns.existsBySlug(slug)) {
+            throw ApiException.conflict("Ya existe una campaña con ese nombre");
+        }
         return campaigns.save(new Campaign(slug, request.name().trim(), encoder.encode(request.passphrase())));
     }
 

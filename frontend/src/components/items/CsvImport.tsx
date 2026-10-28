@@ -136,6 +136,7 @@ export function CsvImport({ inventoryId }: { inventoryId: string }) {
                     <td className="py-1 pr-2 text-gray-100">
                       {r.name}
                       {r.merges && <span className="ml-2 text-xs text-indigo-300">suma al stock</span>}
+                      {r.category && !r.merges && <span className="block text-xs text-gray-400">{r.category}</span>}
                     </td>
                     <td className="py-1 pr-2 text-right text-gray-200">{r.quantity}</td>
                     <td className="py-1 text-right"><Money cp={r.valueCp} denomination={r.denomination} empty="—" /></td>

@@ -146,7 +146,7 @@ public class ItemService {
         if (request.rarity() != null) {
             item.setRarity(request.rarity());
         }
-        item.setCategory(request.category());
+        item.setCategory(trimToNull(request.category()));
         item.setDescription(request.description());
         item.setNotes(request.notes());
         item.setQuantity(quantity);
@@ -171,6 +171,11 @@ public class ItemService {
             item.setSrdIndex(request.srdIndex());
         }
         item.setProperties(requireReasonableProperties(request.properties()));
+    }
+
+    /** " Armas " y "Armas" son la misma categoría al filtrar; vacía es "sin categoría". */
+    private static String trimToNull(String text) {
+        return text == null || text.isBlank() ? null : text.trim();
     }
 
     /** Las propiedades son JSON libre: se acotan su tamaño y su anidamiento para que no rompan la base. */

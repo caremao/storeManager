@@ -220,7 +220,16 @@ export interface Storefront {
 }
 
 export interface ImportResult {
-  rows: { row: number; name: string; quantity: number; valueCp: number | null; denomination: Denomination | null; merges: boolean }[]
+  rows: {
+    row: number
+    name: string
+    category: string | null
+    quantity: number
+    valueCp: number | null
+    denomination: Denomination | null
+    /** Se suma a un item que ya existe con ese nombre; ahí la categoría del CSV no cambia la del item. */
+    merges: boolean
+  }[]
   errors: { row: number; message: string }[]
   imported: number
 }

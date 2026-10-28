@@ -57,8 +57,15 @@ public class TradeService {
     }
 
     /**
-     * Un jugador pide comprar o vender. Una compra a una tienda sin aprobación y con precio se ejecuta
-     * ya; una venta siempre espera al GM, porque su precio sale de un valor que el jugador puede editar.
+     * Un jugador pide comprar o vender.
+     * <ul>
+     * <li>Precio de lista: el valor real del item con el recargo (compra) o la recompra (venta) de la
+     * tienda. Si el valor real es desconocido, queda sin precio y el GM propone uno.</li>
+     * <li>Con {@code offerUnitPriceCp} el jugador propone otro precio: en una compra solo si el producto
+     * es negociable; en una venta, siempre.</li>
+     * <li>Solo una compra sin oferta, con precio y en una tienda sin aprobación se ejecuta ya; lo demás
+     * espera al GM (una venta siempre, porque el jugador puede editar sus items).</li>
+     * </ul>
      */
     @Transactional
     public TradeDto request(Actor actor, UUID shopId, TradeCreateRequest request) {
@@ -68,13 +75,18 @@ public class TradeService {
         Inventory shop = requireShop(actor, shopId);
         Inventory character = inventoryRepo.findById(actor.characterId()).orElseThrow(ApiException::unauthorized);
         int quantity = request.quantity();
+        Long offer = request.offerUnitPriceCp();
         Item item;
-        Long unit;
+        Long list;
         if (request.kind() == TradeKind.BUY) {
             item = items.findByIdAndInventoryId(request.itemId(), shop.getId())
                     .orElseThrow(() -> ApiException.notFound("Artículo"));
+            if (offer != null && !item.isNegotiable()) {
+                throw ApiException.badRequest(item.getName() + " no se negocia: se vende a su precio");
+            }
             requireStock(item, quantity);
-            unit = Pricing.apply(item.getValueCp(), shop.getSellMarkupPct());
+            list = Pricing.apply(item.getValueCp(), shop.getSellMarkupPct());
+            Long unit = offer != null ? offer : list;
             if (unit != null && character.getPurse().totalCopper() < Pricing.multiply(unit, quantity)) {
                 throw new InsufficientFundsException(
                         "No te alcanza: cuesta " + Pricing.format(Pricing.multiply(unit, quantity)));
@@ -83,34 +95,55 @@ public class TradeService {
             item = items.findByIdAndInventoryId(request.itemId(), character.getId())
                     .orElseThrow(() -> ApiException.notFound("Artículo"));
             requireOwned(item, quantity, "Solo tienes ");
-            unit = Pricing.apply(item.getValueCp(), shop.getBuybackPct());
+            list = Pricing.apply(item.getValueCp(), shop.getBuybackPct());
         }
-        TradeRequest trade = trades.save(new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
-                item.getId(), item.getName(), request.kind(), quantity, unit, blankToNull(request.note())));
-        if (request.kind() == TradeKind.BUY && !shop.isRequiresApproval() && unit != null) {
-            execute(actor, trade, shop, character, unit);
+        TradeRequest trade = new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
+                item.getId(), item.getName(), request.kind(), quantity, list, blankToNull(request.note()));
+        trade.setPriceDenomination(item.getPriceDenomination());
+        if (offer != null) {
+            trade.offer(offer, OfferBy.PLAYER);
+        }
+        trades.save(trade);
+        boolean direct = request.kind() == TradeKind.BUY && offer == null && list != null
+                && !shop.isRequiresApproval();
+        if (direct) {
+            execute(actor, trade, shop, character, list);
         }
         publish(trade);
         return toDto(trade, shop.getName(), character.getName());
     }
 
+    /** El GM acepta el precio que está sobre la mesa (el de lista o la oferta del jugador). */
     @Transactional
-    public TradeDto approve(Actor actor, UUID tradeId, Long unitPriceCp) {
+    public TradeDto approve(Actor actor, UUID tradeId) {
         actor.requireGm();
         TradeRequest trade = find(actor, tradeId);
-        trade.requirePending();
-        Long unit = unitPriceCp != null ? unitPriceCp : trade.getUnitPriceCp();
-        if (unit == null) {
-            throw ApiException.badRequest("Este artículo no tiene precio: indícalo para aprobar");
+        trade.requireTurn(TradeStatus.PENDING);
+        if (trade.getUnitPriceCp() == null) {
+            throw ApiException.badRequest("Este artículo no tiene precio: propón uno con una contraoferta");
         }
-        Inventory shop = inventoryRepo.findById(trade.getShopId()).orElseThrow(() -> ApiException.notFound("Tienda"));
-        Inventory character = inventoryRepo.findById(trade.getCharacterId())
-                .orElseThrow(() -> ApiException.notFound("Personaje"));
-        execute(actor, trade, shop, character, unit);
-        publish(trade);
-        return toDto(trade, shop.getName(), character.getName());
+        return executeAndPublish(actor, trade);
     }
 
+    /** El jugador acepta la contraoferta del GM; se ejecuta en el acto. */
+    @Transactional
+    public TradeDto accept(Actor actor, UUID tradeId) {
+        TradeRequest trade = findOwn(actor, tradeId);
+        trade.requireTurn(TradeStatus.COUNTERED);
+        return executeAndPublish(actor, trade);
+    }
+
+    /** Contraoferta del GM (le pasa el turno al jugador) o nueva oferta del jugador (se lo pasa al GM). */
+    @Transactional
+    public TradeDto counter(Actor actor, UUID tradeId, long unitPriceCp) {
+        TradeRequest trade = actor.isGm() ? find(actor, tradeId) : findOwn(actor, tradeId);
+        trade.requireTurn(actor.isGm() ? TradeStatus.PENDING : TradeStatus.COUNTERED);
+        trade.offer(unitPriceCp, actor.isGm() ? OfferBy.GM : OfferBy.PLAYER);
+        publish(trade);
+        return toDto(trade);
+    }
+
+    /** El GM corta la negociación, sea su turno o no. */
     @Transactional
     public TradeDto reject(Actor actor, UUID tradeId, String note) {
         actor.requireGm();
@@ -123,15 +156,22 @@ public class TradeService {
         return toDto(trade);
     }
 
+    /** El jugador retira su pedido, sea su turno o no. */
     @Transactional
     public TradeDto cancel(Actor actor, UUID tradeId) {
-        TradeRequest trade = find(actor, tradeId);
-        if (!actor.isCharacter(trade.getCharacterId())) {
-            throw ApiException.notFound("Solicitud");
-        }
+        TradeRequest trade = findOwn(actor, tradeId);
         trade.resolve(TradeStatus.CANCELLED);
         publish(trade);
         return toDto(trade);
+    }
+
+    private TradeDto executeAndPublish(Actor actor, TradeRequest trade) {
+        Inventory shop = inventoryRepo.findById(trade.getShopId()).orElseThrow(() -> ApiException.notFound("Tienda"));
+        Inventory character = inventoryRepo.findById(trade.getCharacterId())
+                .orElseThrow(() -> ApiException.notFound("Personaje"));
+        execute(actor, trade, shop, character, trade.getUnitPriceCp());
+        publish(trade);
+        return toDto(trade, shop.getName(), character.getName());
     }
 
     /** El GM registra en la mesa una compra o venta ya acordada; se ejecuta en el acto. */
@@ -153,8 +193,10 @@ public class TradeService {
         if (unit == null) {
             throw ApiException.badRequest("Este artículo no tiene precio: indícalo");
         }
-        TradeRequest trade = trades.save(new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
-                item.getId(), item.getName(), request.kind(), request.quantity(), unit, null));
+        TradeRequest trade = new TradeRequest(actor.campaignId(), shop.getId(), character.getId(),
+                item.getId(), item.getName(), request.kind(), request.quantity(), unit, null);
+        trade.setPriceDenomination(item.getPriceDenomination());
+        trades.save(trade);
         execute(actor, trade, shop, character, unit);
         publish(trade);
         return toDto(trade, shop.getName(), character.getName());
@@ -181,7 +223,7 @@ public class TradeService {
     }
 
     private void execute(Actor actor, TradeRequest trade, Inventory shop, Inventory character, long unit) {
-        trade.requirePending();
+        trade.requireOpen();
         int quantity = trade.getQuantity();
         long total = Pricing.multiply(unit, quantity);
         if (trade.getKind() == TradeKind.BUY) {
@@ -217,7 +259,9 @@ public class TradeService {
         details.put("kind", trade.getKind().name());
         details.put("quantity", quantity);
         details.put("unitPriceCp", unit);
+        details.put("listUnitPriceCp", trade.getListUnitPriceCp());
         details.put("totalCp", total);
+        details.put("priceDenomination", trade.getPriceDenomination() == null ? null : trade.getPriceDenomination().name());
         details.put("characterName", character.getName());
         history.log(actor, HistoryAction.TRADE_EXECUTED, shop, character, trade.getItemName(), details);
     }
@@ -252,6 +296,15 @@ public class TradeService {
     private TradeRequest find(Actor actor, UUID tradeId) {
         return trades.findByIdAndCampaignId(tradeId, actor.campaignId())
                 .orElseThrow(() -> ApiException.notFound("Solicitud"));
+    }
+
+    /** Una solicitud del propio personaje del jugador (la de otro, para él, no existe). */
+    private TradeRequest findOwn(Actor actor, UUID tradeId) {
+        TradeRequest trade = find(actor, tradeId);
+        if (!actor.isCharacter(trade.getCharacterId())) {
+            throw ApiException.notFound("Solicitud");
+        }
+        return trade;
     }
 
     private static void requireStock(Item item, int quantity) {
@@ -289,8 +342,9 @@ public class TradeService {
     private static TradeDto toDto(TradeRequest t, String shopName, String characterName) {
         Long total = t.getUnitPriceCp() == null ? null : Pricing.multiply(t.getUnitPriceCp(), t.getQuantity());
         return new TradeDto(t.getId(), t.getShopId(), shopName, t.getCharacterId(), characterName, t.getItemId(),
-                t.getItemName(), t.getKind(), t.getQuantity(), t.getUnitPriceCp(), total, t.getStatus(), t.getNote(),
-                t.getCreatedAt(), t.getResolvedAt());
+                t.getItemName(), t.getKind(), t.getQuantity(), t.getUnitPriceCp(), total, t.getListUnitPriceCp(),
+                t.getLastOfferBy(), t.getPriceDenomination(), t.getStatus(), t.getNote(), t.getCreatedAt(),
+                t.getResolvedAt());
     }
 
     private static String blankToNull(String s) {

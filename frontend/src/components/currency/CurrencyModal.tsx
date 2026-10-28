@@ -86,8 +86,7 @@ export function CurrencyModal({ mode, onSubmit, onClose }: CurrencyModalProps) {
         </div>
         <div>
           <label htmlFor="coin-note" className={label}>Nota (opcional)</label>
-          <input id="coin-note" value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder={mode === 'add' ? 'Botín del dragón' : 'Posada y comida'} className={input} />
+          <input id="coin-note" value={note} onChange={(e) => setNote(e.target.value)} className={input} />
         </div>
       </form>
     </Modal>

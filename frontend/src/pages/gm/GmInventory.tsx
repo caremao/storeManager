@@ -4,12 +4,14 @@ import { ArrowLeft, HandCoins, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { isStatus } from '../../api/client'
 import {
   useChangeCurrency,
+  useConvertCurrency,
   useDeleteInventory,
   useInventory,
   useRegenerateToken,
   useUpdateInventory,
 } from '../../api/hooks'
 import type { Inventory, Item, UpdateInventoryInput } from '../../api/types'
+import { ConvertModal } from '../../components/currency/ConvertModal'
 import { CurrencyModal } from '../../components/currency/CurrencyModal'
 import { PurseWidget } from '../../components/currency/PurseWidget'
 import { HistoryPanel } from '../../components/history/HistoryPanel'
@@ -36,6 +38,8 @@ function InventoryView({ inventory }: { inventory: Inventory }) {
   const update = useUpdateInventory(inventory.id)
   const remove = useDeleteInventory()
   const currency = useChangeCurrency(inventory.id)
+  const convert = useConvertCurrency(inventory.id)
+  const [converting, setConverting] = useState(false)
   const [editing, setEditing] = useState(false)
   const [coins, setCoins] = useState<'add' | 'spend' | null>(null)
   const [selling, setSelling] = useState<Item | null>(null)
@@ -81,6 +85,7 @@ function InventoryView({ inventory }: { inventory: Inventory }) {
           unlimited={isShop && !!inventory.unlimitedFunds}
           onAdd={() => setCoins('add')}
           onSpend={() => setCoins('spend')}
+          onConvert={() => setConverting(true)}
         />
         {!isShop && <CharacterQr character={inventory} />}
       </div>
@@ -109,6 +114,9 @@ function InventoryView({ inventory }: { inventory: Inventory }) {
         />
       )}
       {coins && <CurrencyModal mode={coins} onSubmit={(c) => currency.mutateAsync(c)} onClose={() => setCoins(null)} />}
+      {converting && inventory.purse && (
+        <ConvertModal purse={inventory.purse} onSubmit={(b) => convert.mutateAsync(b)} onClose={() => setConverting(false)} />
+      )}
       {selling && <DirectTradeModal shop={inventory} item={selling} onClose={() => setSelling(null)} />}
     </div>
   )

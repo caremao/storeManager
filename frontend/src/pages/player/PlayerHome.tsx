@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Store } from 'lucide-react'
-import { useChangeCurrency, useInventory, useItems, useMe, useTrades } from '../../api/hooks'
+import { useChangeCurrency, useConvertCurrency, useInventory, useItems, useMe, useTrades } from '../../api/hooks'
 import type { Inventory } from '../../api/types'
+import { ConvertModal } from '../../components/currency/ConvertModal'
 import { CurrencyModal } from '../../components/currency/CurrencyModal'
 import { PurseWidget } from '../../components/currency/PurseWidget'
 import { HistoryPanel } from '../../components/history/HistoryPanel'
@@ -24,11 +25,14 @@ function CharacterSheet({ character }: { character: Inventory }) {
   const { data: me } = useMe()
   const canAddCoins = me?.campaign.playersCanAddCoins ?? false
   const currency = useChangeCurrency(character.id)
+  const convert = useConvertCurrency(character.id)
+  const [converting, setConverting] = useState(false)
   const { data: items = [] } = useItems(character.id)
   const { data: trades = [] } = useTrades()
   const [coins, setCoins] = useState<'add' | 'spend' | null>(null)
+  const countered = trades.filter((t) => t.status === 'COUNTERED')
   const pending = trades.filter((t) => t.status === 'PENDING')
-  const recent = trades.filter((t) => t.status !== 'PENDING').slice(0, 5)
+  const recent = trades.filter((t) => t.status !== 'PENDING' && t.status !== 'COUNTERED').slice(0, 5)
 
   return (
     <div className="space-y-6">
@@ -44,7 +48,15 @@ function CharacterSheet({ character }: { character: Inventory }) {
         purse={character.purse}
         onAdd={canAddCoins ? () => setCoins('add') : undefined}
         onSpend={() => setCoins('spend')}
+        onConvert={() => setConverting(true)}
       />
+
+      {countered.length > 0 && (
+        <section className={`${card} p-4 sm:p-6 border-indigo-500`}>
+          <h2 className="text-xl font-semibold text-indigo-200 mb-4">El GM te hizo una contraoferta</h2>
+          <TradeList trades={countered} mode="player" />
+        </section>
+      )}
 
       {pending.length > 0 && (
         <section className={`${card} p-4 sm:p-6`}>
@@ -71,6 +83,9 @@ function CharacterSheet({ character }: { character: Inventory }) {
       <HistoryPanel inventoryId={character.id} title="Tu historial" />
 
       {coins && <CurrencyModal mode={coins} onSubmit={(c) => currency.mutateAsync(c)} onClose={() => setCoins(null)} />}
+      {converting && character.purse && (
+        <ConvertModal purse={character.purse} onSubmit={(b) => convert.mutateAsync(b)} onClose={() => setConverting(false)} />
+      )}
     </div>
   )
 }

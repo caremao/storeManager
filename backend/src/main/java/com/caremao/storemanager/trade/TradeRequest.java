@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.caremao.storemanager.common.ApiException;
+import com.caremao.storemanager.inventory.Denomination;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -32,8 +33,16 @@ public class TradeRequest {
     private TradeKind kind;
 
     private int quantity;
-    /** Null si el item no tiene precio: el GM lo fija al aprobar. */
+    /** Precio que está sobre la mesa. Null si el item no tiene precio: el GM lo propone. */
     private Long unitPriceCp;
+    /** Precio de la tienda al pedir (recargo o recompra sobre el valor real). */
+    private Long listUnitPriceCp;
+    /** Quién propuso {@code unitPriceCp}; null = es el precio de lista. */
+    @Enumerated(EnumType.STRING)
+    private OfferBy lastOfferBy;
+    /** Moneda en que está fijado el precio del item, para mostrarlo igual. */
+    @Enumerated(EnumType.STRING)
+    private Denomination priceDenomination;
 
     @Enumerated(EnumType.STRING)
     private TradeStatus status = TradeStatus.PENDING;
@@ -60,17 +69,29 @@ public class TradeRequest {
         this.kind = kind;
         this.quantity = quantity;
         this.unitPriceCp = unitPriceCp;
+        this.listUnitPriceCp = unitPriceCp;
         this.note = note;
     }
 
-    public void requirePending() {
-        if (status != TradeStatus.PENDING) {
+    /** Sigue abierta (pendiente o con contraoferta). */
+    public void requireOpen() {
+        if (!status.isOpen()) {
             throw ApiException.conflict("Esta solicitud ya fue resuelta");
         }
     }
 
+    /** Es el turno de quien quiere actuar: el GM en {@code PENDING}, el jugador en {@code COUNTERED}. */
+    void requireTurn(TradeStatus expected) {
+        requireOpen();
+        if (status != expected) {
+            throw ApiException.conflict(expected == TradeStatus.PENDING
+                    ? "Ahora le toca al jugador responder la contraoferta"
+                    : "Ahora le toca al GM responder");
+        }
+    }
+
     void resolve(TradeStatus newStatus) {
-        requirePending();
+        requireOpen();
         status = newStatus;
         resolvedAt = Instant.now();
     }
@@ -78,6 +99,26 @@ public class TradeRequest {
     void approve(long finalUnitPriceCp) {
         unitPriceCp = finalUnitPriceCp;
         resolve(TradeStatus.APPROVED);
+    }
+
+    /** Pone un precio sobre la mesa y pasa el turno al otro. */
+    void offer(long priceCp, OfferBy by) {
+        requireOpen();
+        unitPriceCp = priceCp;
+        lastOfferBy = by;
+        status = by == OfferBy.GM ? TradeStatus.COUNTERED : TradeStatus.PENDING;
+    }
+
+    public Long getListUnitPriceCp() {
+        return listUnitPriceCp;
+    }
+
+    void setListUnitPriceCp(Long listUnitPriceCp) {
+        this.listUnitPriceCp = listUnitPriceCp;
+    }
+
+    public OfferBy getLastOfferBy() {
+        return lastOfferBy;
     }
 
     public UUID getId() {
@@ -114,6 +155,14 @@ public class TradeRequest {
 
     public Long getUnitPriceCp() {
         return unitPriceCp;
+    }
+
+    public Denomination getPriceDenomination() {
+        return priceDenomination;
+    }
+
+    void setPriceDenomination(Denomination priceDenomination) {
+        this.priceDenomination = priceDenomination;
     }
 
     public TradeStatus getStatus() {

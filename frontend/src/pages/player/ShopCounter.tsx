@@ -9,8 +9,9 @@ import { ItemsList } from '../../components/items/ItemsList'
 import { QuantityAction } from '../../components/trades/QuantityAction'
 import { TradeList } from '../../components/trades/TradeList'
 import { EmptyState, ErrorBox, Spinner, SuccessBox } from '../../components/ui/Feedback'
+import { Money } from '../../components/ui/Money'
 import { card } from '../../components/ui/styles'
-import { applyPct, formatCp } from '../../lib/coins'
+import { applyPct, formatMoney } from '../../lib/coins'
 
 /** El mostrador: el stock de la tienda con sus precios y lo que el jugador le puede vender. */
 export function ShopCounter() {
@@ -39,8 +40,10 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
   const [detail, setDetail] = useState<Item | null>(null)
   const noticeTimer = useRef<number | undefined>(undefined)
   const wallet = character?.purse?.totalCp ?? 0
-  const pending = trades.filter((t) => t.shopId === shop.id && t.status === 'PENDING')
+  const pending = trades.filter((t) => t.shopId === shop.id && (t.status === 'PENDING' || t.status === 'COUNTERED'))
   const sellable = myItems.filter((i) => i.quantity > 0)
+  // Lo que ofrecería la tienda: solo se puede anticipar si el jugador conoce el valor real.
+  const buybackOf = (item: Item) => (item.valueRevealed ? applyPct(item.valueCp, shop.buybackPct) : null)
 
   const show = (ok: boolean, text: string) => {
     window.clearTimeout(noticeTimer.current)
@@ -48,12 +51,14 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
     noticeTimer.current = window.setTimeout(() => setNotice(null), 6000)
   }
 
-  const trade = async (kind: TradeKind, item: Item, quantity: number) => {
+  const trade = async (kind: TradeKind, item: Item, quantity: number, offerUnitPriceCp?: number) => {
     try {
-      const result = await request.mutateAsync({ kind, itemId: item.id, quantity })
+      const result = await request.mutateAsync({ kind, itemId: item.id, quantity, offerUnitPriceCp })
       const what = `${quantity}× ${item.name}`
       if (result.status === 'APPROVED') {
         show(true, kind === 'BUY' ? `¡Listo! Compraste ${what}.` : `¡Listo! Vendiste ${what}.`)
+      } else if (offerUnitPriceCp !== undefined) {
+        show(true, `Oferta enviada al GM: ${what} a ${formatMoney(offerUnitPriceCp, item.priceDenomination)} c/u.`)
       } else {
         show(true, `Pedido enviado al GM: ${kind === 'BUY' ? 'comprar' : 'vender'} ${what}.`)
       }
@@ -81,7 +86,7 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
         <h1 className="text-3xl font-bold text-gray-100">{shop.name}</h1>
         {shop.description && <p className="mt-2 text-gray-300 whitespace-pre-wrap">{shop.description}</p>}
         <p className="mt-3 text-gray-400">
-          Tu bolsa: <span className="font-semibold text-yellow-400">{formatCp(wallet)}</span>
+          Tu bolsa: <Money cp={wallet} />
           {shop.requiresApproval && ' · el GM aprueba cada compra'}
         </p>
       </section>
@@ -111,7 +116,14 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
               blockedReason={buyBlocked(item)}
               busy={request.isPending}
               onConfirm={(q) => trade('BUY', item, q)}
-              summary={(q) => (item.priceCp === null ? 'el GM fija el precio' : `total ${formatCp(item.priceCp * q)}`)}
+              summary={(q) => (item.priceCp === null
+                ? 'el GM fija el precio'
+                : `total ${formatMoney(item.priceCp * q, item.priceDenomination)}`)}
+              offer={item.negotiable ? {
+                denomination: item.priceDenomination,
+                startCp: item.priceCp,
+                onOffer: (q, cp) => trade('BUY', item, q, cp),
+              } : undefined}
             />
           )}
         />
@@ -124,25 +136,32 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
         </p>
         <ItemsList
           items={sellable}
-          priceOf={(item) => applyPct(item.valueCp, shop.buybackPct)}
+          priceOf={buybackOf}
           onItemClick={setDetail}
           emptyText="No tienes nada para vender"
           renderFooter={(item) => {
-            const offer = applyPct(item.valueCp, shop.buybackPct)
+            const buyback = buybackOf(item)
             return (
               <QuantityAction
                 max={item.quantity}
-                actionLabel="Ofrecer"
+                actionLabel="Ofrecer a la tienda"
                 busy={request.isPending}
                 onConfirm={(q) => trade('SELL', item, q)}
-                summary={(q) => (offer === null ? 'el GM fija el precio' : `recibes ${formatCp(offer * q)}`)}
+                summary={(q) => (buyback === null
+                  ? 'la tienda te hará una oferta'
+                  : `recibes ${formatMoney(buyback * q, item.priceDenomination)}`)}
+                offer={{
+                  denomination: item.valueRevealed ? item.priceDenomination : item.perceivedDenomination,
+                  startCp: buyback ?? item.perceivedValueCp,
+                  onOffer: (q, cp) => trade('SELL', item, q, cp),
+                }}
               />
             )
           }}
         />
       </section>
 
-      {detail && <ItemDetail item={detail} onClose={() => setDetail(null)} />}
+      {detail && <ItemDetail item={detail} role="player" onClose={() => setDetail(null)} />}
     </div>
   )
 }

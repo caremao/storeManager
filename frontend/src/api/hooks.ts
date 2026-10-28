@@ -4,6 +4,7 @@ import type {
   Campaign,
   CreateInventoryInput,
   CurrencyChange,
+  Denomination,
   HistoryPage,
   Inventory,
   InventoryKind,
@@ -176,6 +177,18 @@ export function useChangeCurrency(id: string) {
   })
 }
 
+export function useConvertCurrency(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { from: Denomination; to: Denomination; amount: number }) =>
+      (await api.post<Inventory>(`/api/inventories/${id}/currency/convert`, body)).data,
+    onSuccess: (inv) => {
+      qc.setQueryData(keys.inventory(id), inv)
+      invalidateInventory(qc, id)
+    },
+  })
+}
+
 export function useRegenerateToken() {
   const qc = useQueryClient()
   return useMutation({
@@ -205,6 +218,15 @@ export function useSaveItem(inventoryId: string) {
       const url = `/api/inventories/${inventoryId}/items`
       return (id ? await api.put<Item>(`${url}/${id}`, input) : await api.post<Item>(url, input)).data
     },
+    onSuccess: () => invalidateInventory(qc, inventoryId),
+  })
+}
+
+export function useRevealItem(inventoryId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (itemId: string) =>
+      (await api.post<Item>(`/api/inventories/${inventoryId}/items/${itemId}/reveal`)).data,
     onSuccess: () => invalidateInventory(qc, inventoryId),
   })
 }
@@ -249,8 +271,10 @@ function useTradeMutation<V>(request: (vars: V) => Promise<Trade>) {
 }
 
 export function useRequestTrade(shopId: string) {
-  return useTradeMutation(async (body: { kind: TradeKind; itemId: string; quantity: number; note?: string }) =>
-    (await api.post<Trade>(`/api/shops/${shopId}/trades`, body)).data)
+  return useTradeMutation(
+    async (body: { kind: TradeKind; itemId: string; quantity: number; offerUnitPriceCp?: number; note?: string }) =>
+      (await api.post<Trade>(`/api/shops/${shopId}/trades`, body)).data,
+  )
 }
 
 export function useDirectTrade(shopId: string) {
@@ -260,9 +284,20 @@ export function useDirectTrade(shopId: string) {
   )
 }
 
+/** El GM acepta el precio que está sobre la mesa. */
 export function useApproveTrade() {
-  return useTradeMutation(async ({ id, unitPriceCp }: { id: string; unitPriceCp?: number }) =>
-    (await api.post<Trade>(`/api/trades/${id}/approve`, unitPriceCp === undefined ? {} : { unitPriceCp })).data)
+  return useTradeMutation(async (id: string) => (await api.post<Trade>(`/api/trades/${id}/approve`)).data)
+}
+
+/** El jugador acepta la contraoferta del GM. */
+export function useAcceptTrade() {
+  return useTradeMutation(async (id: string) => (await api.post<Trade>(`/api/trades/${id}/accept`)).data)
+}
+
+/** Contraoferta del GM o nueva oferta del jugador (según de quién sea el turno). */
+export function useCounterTrade() {
+  return useTradeMutation(async ({ id, unitPriceCp }: { id: string; unitPriceCp: number }) =>
+    (await api.post<Trade>(`/api/trades/${id}/counter`, { unitPriceCp })).data)
 }
 
 export function useRejectTrade() {

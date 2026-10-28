@@ -1,11 +1,17 @@
 // Espejo de los DTO del backend (records en *Dtos.java). Los campos `| null` siempre vienen en el JSON.
 
+import type { Denomination } from '../lib/coins'
+
+export type { Denomination }
+
 export type Role = 'GM' | 'PLAYER'
 export type InventoryKind = 'SHOP' | 'CHARACTER' | 'PARTY'
 export type ItemType = 'EQUIPMENT' | 'POTION' | 'SCROLL' | 'CONSUMABLE' | 'MISC'
 export type ItemRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'VERY_RARE' | 'LEGENDARY' | 'ARTIFACT'
 export type TradeKind = 'BUY' | 'SELL'
-export type TradeStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+/** PENDING: le toca al GM. COUNTERED: el GM contraofertó y le toca al jugador. */
+export type TradeStatus = 'PENDING' | 'COUNTERED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+export type OfferBy = 'PLAYER' | 'GM'
 export type HistoryAction = 'ITEM_ADDED' | 'ITEM_UPDATED' | 'ITEM_REMOVED' | 'CURRENCY_UPDATED' | 'TRADE_EXECUTED'
 
 export interface Campaign {
@@ -98,9 +104,18 @@ export interface Item {
   quantity: number
   unlimitedStock: boolean
   weight: number | null
+  /** Valor real. Al jugador solo le llega si `valueRevealed`, y nunca el de una tienda. */
   valueCp: number | null
   /** Lo que cobra la tienda (valor × recargo); null fuera de tiendas o sin precio. */
   priceCp: number | null
+  /** Moneda en que se fijó el precio; null = oro. */
+  priceDenomination: Denomination | null
+  /** Lo que cree el dueño que vale; null = desconocido. */
+  perceivedValueCp: number | null
+  perceivedDenomination: Denomination | null
+  valueRevealed: boolean
+  /** En una tienda: acepta ofertas. */
+  negotiable: boolean
   srdIndex: string | null
   properties: Record<string, unknown> | null
   updatedAt: string
@@ -117,6 +132,12 @@ export interface ItemInput {
   unlimitedStock: boolean
   weight: number | null
   valueCp: number | null
+  priceDenomination: Denomination | null
+  perceivedValueCp: number | null
+  perceivedDenomination: Denomination | null
+  /** Solo los respeta el servidor si los manda el GM. */
+  valueRevealed: boolean
+  negotiable: boolean
   srdIndex: string | null
   properties: Record<string, unknown> | null
 }
@@ -131,8 +152,14 @@ export interface Trade {
   itemName: string
   kind: TradeKind
   quantity: number
+  /** Precio sobre la mesa. */
   unitPriceCp: number | null
   totalCp: number | null
+  /** Precio de la tienda al pedir. */
+  listUnitPriceCp: number | null
+  /** Quién propuso `unitPriceCp`; null = precio de lista. */
+  lastOfferBy: OfferBy | null
+  priceDenomination: Denomination | null
   status: TradeStatus
   note: string | null
   createdAt: string

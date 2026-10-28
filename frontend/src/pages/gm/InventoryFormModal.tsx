@@ -80,8 +80,7 @@ export function InventoryFormModal({ kind, inventory, onSubmit, onClose }: Inven
         {error && <ErrorBox>{error}</ErrorBox>}
         <div>
           <label htmlFor="inv-name" className={label}>Nombre</label>
-          <input id="inv-name" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder={isShop ? 'Herrería de Cofferdeep' : 'Gharra'} className={input} />
+          <input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} className={input} />
         </div>
         {!isShop && (
           <div>

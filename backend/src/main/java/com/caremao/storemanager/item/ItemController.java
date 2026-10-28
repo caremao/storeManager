@@ -48,6 +48,11 @@ public class ItemController {
         return items.update(actor, inventoryId, itemId, body);
     }
 
+    @PostMapping("/{itemId}/reveal")
+    public ItemDto reveal(Actor actor, @PathVariable UUID inventoryId, @PathVariable UUID itemId) {
+        return items.reveal(actor, inventoryId, itemId);
+    }
+
     @DeleteMapping("/{itemId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(Actor actor, @PathVariable UUID inventoryId, @PathVariable UUID itemId) {

@@ -166,7 +166,7 @@ function CharacterQr({ character }: { character: Inventory }) {
   )
 }
 
-/** QR de la vitrina pública: cualquiera que lo escanee ve el stock a la vista, sin sesión. */
+/** QR de la vitrina pública: cualquiera que lo escanee ve el stock a la vista, sin sesión; un jugador de la campaña va al mostrador. */
 function StorefrontQr({ shop }: { shop: Inventory }) {
   const regenerate = useRegenerateStorefront()
   const handleRegenerate = () => {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Store } from 'lucide-react'
 import { errorMessage, isStatus } from '../api/client'
 import { useMe, useStorefront } from '../api/hooks'
@@ -9,7 +9,7 @@ import { PROPERTY_LABELS, RARITY_LABELS, TYPE_LABELS, formatProperty } from '../
 import { EmptyState, ErrorBox, Spinner } from '../components/ui/Feedback'
 import { Modal } from '../components/ui/Modal'
 import { Money } from '../components/ui/Money'
-import { card, primaryButton } from '../components/ui/styles'
+import { card } from '../components/ui/styles'
 
 /** La vitrina solo trae lo que se vende: nada oculto ni de valor desconocido. */
 const toCard = (item: StorefrontItem): CardItem => ({
@@ -21,7 +21,8 @@ const toCard = (item: StorefrontItem): CardItem => ({
 
 /**
  * Destino del QR de una tienda: el stock a la vista, sin sesión y de solo lectura. El token va en el
- * fragmento (`/vitrina#token`), que el navegador no envía al servidor ni deja en el Referer.
+ * fragmento (`/vitrina#token`), que el navegador no envía al servidor ni deja en el Referer. Un jugador de
+ * la campaña pasa directo al mostrador; con `replace`, "atrás" no lo vuelve a traer acá.
  */
 export function Storefront() {
   const token = useLocation().hash.slice(1)
@@ -35,6 +36,7 @@ export function Storefront() {
     return <EmptyState title="Esta tienda está cerrada">O el QR ya no sirve: pídele el nuevo al GM.</EmptyState>
   }
   if (!shop) return <ErrorBox>{errorMessage(error)}</ErrorBox>
+  if (shop.shopId) return <Navigate to={`/pj/tiendas/${shop.shopId}`} replace />
 
   return (
     <div className="space-y-6">
@@ -44,17 +46,11 @@ export function Storefront() {
         </p>
         <h1 className="text-3xl font-bold text-gray-100">{shop.name}</h1>
         {shop.description && <p className="mt-2 text-gray-300 whitespace-pre-wrap">{shop.description}</p>}
-        <div className="mt-4">
-          {shop.shopId ? (
-            <Link to={`/pj/tiendas/${shop.shopId}`} className={primaryButton}>Pedir en el mostrador</Link>
-          ) : (
-            <p className="text-sm text-gray-400">
-              {me?.role === 'GM'
-                ? 'Así ven la tienda los jugadores.'
-                : 'Para comprar o vender, escanea el QR de tu personaje y vuelve a abrir esta vitrina.'}
-            </p>
-          )}
-        </div>
+        <p className="mt-4 text-sm text-gray-400">
+          {me?.role === 'GM'
+            ? 'Así la ve quien no tiene sesión. Los jugadores de la campaña van directo al mostrador.'
+            : 'Para comprar o vender, escanea el QR de tu personaje y vuelve a abrir esta vitrina.'}
+        </p>
       </section>
 
       {shop.items.length === 0 ? (

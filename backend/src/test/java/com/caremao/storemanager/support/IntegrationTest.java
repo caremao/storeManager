@@ -35,6 +35,10 @@ public abstract class IntegrationTest {
         return gm;
     }
 
+    protected static String slugOf(ApiClient gm) {
+        return gm.get("/api/me").json().get("campaign").get("slug").asString();
+    }
+
     protected static String createShop(ApiClient gm, String name, Map<String, Object> settings) {
         Map<String, Object> body = new HashMap<>(settings);
         body.put("kind", "SHOP");
@@ -53,8 +57,8 @@ public abstract class IntegrationTest {
         assertThat(response.status()).as(response.body()).isEqualTo(201);
         JsonNode json = response.json();
         String joinUrl = json.get("joinUrl").asString();
-        assertThat(joinUrl).startsWith("http://mesa.test/join/");
-        return new String[] { json.get("id").asString(), joinUrl.substring(joinUrl.lastIndexOf('/') + 1) };
+        assertThat(joinUrl).as("el token va en el fragmento, nunca llega al servidor").startsWith("http://mesa.test/join#");
+        return new String[] { json.get("id").asString(), joinUrl.substring(joinUrl.indexOf('#') + 1) };
     }
 
     protected static String addItem(ApiClient client, String inventoryId, Map<String, Object> item) {

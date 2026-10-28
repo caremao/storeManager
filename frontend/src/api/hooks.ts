@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, isStatus } from './client'
 import type {
+  Campaign,
   CreateInventoryInput,
   CurrencyChange,
   HistoryPage,
@@ -86,6 +87,17 @@ export function useGmLogin() {
 
 export function useJoin() {
   return useSessionMutation(async (token: string) => (await api.post<Me>('/api/join', { token })).data)
+}
+
+export function useUpdateCampaign() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { playersCanAddCoins?: boolean }) =>
+      (await api.patch<Campaign>('/api/campaign', body)).data,
+    onSuccess: (campaign) => {
+      qc.setQueryData<Me | null>(keys.me, (me) => (me ? { ...me, campaign } : me))
+    },
+  })
 }
 
 export function useLogout() {

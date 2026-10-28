@@ -12,6 +12,8 @@ export interface Campaign {
   id: string
   slug: string
   name: string
+  /** Regla de mesa: si es false, el jugador gasta sus monedas pero no se las suma. */
+  playersCanAddCoins: boolean
 }
 
 export interface Me {

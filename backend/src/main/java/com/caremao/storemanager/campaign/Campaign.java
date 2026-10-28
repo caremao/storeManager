@@ -20,6 +20,8 @@ public class Campaign {
     private String slug;
     private String name;
     private String gmPassphraseHash;
+    /** Si es false, un jugador puede gastar sus monedas pero no sumárselas; eso lo hace el GM. */
+    private boolean playersCanAddCoins = true;
     private Instant createdAt = Instant.now();
 
     protected Campaign() {
@@ -45,5 +47,13 @@ public class Campaign {
 
     public String getGmPassphraseHash() {
         return gmPassphraseHash;
+    }
+
+    public boolean isPlayersCanAddCoins() {
+        return playersCanAddCoins;
+    }
+
+    public void setPlayersCanAddCoins(boolean playersCanAddCoins) {
+        this.playersCanAddCoins = playersCanAddCoins;
     }
 }

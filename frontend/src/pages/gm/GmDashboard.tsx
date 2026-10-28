@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Eye, EyeOff, Plus, ShieldCheck, User, Zap } from 'lucide-react'
-import { useCreateInventory, useInventories, useTrades } from '../../api/hooks'
+import { errorMessage } from '../../api/client'
+import { useCreateInventory, useInventories, useMe, useTrades, useUpdateCampaign } from '../../api/hooks'
 import type { CreateInventoryInput, Inventory, InventoryKind } from '../../api/types'
 import { HistoryPanel } from '../../components/history/HistoryPanel'
 import { TradeList } from '../../components/trades/TradeList'
-import { Spinner } from '../../components/ui/Feedback'
+import { ErrorBox, Spinner } from '../../components/ui/Feedback'
 import { card, primaryButton, smallButton } from '../../components/ui/styles'
 import { formatCp } from '../../lib/coins'
 import { InventoryFormModal } from './InventoryFormModal'
@@ -36,6 +37,8 @@ export function GmDashboard() {
         <InventorySection title="Tiendas" kind="SHOP" items={shops} onCreate={() => setCreating('SHOP')} />
         <InventorySection title="Personajes" kind="CHARACTER" items={characters} onCreate={() => setCreating('CHARACTER')} />
       </div>
+
+      <TableRules />
 
       <HistoryPanel title="Últimos movimientos" />
 
@@ -90,6 +93,35 @@ function InventorySection({ title, kind, items, onCreate }: {
           ))}
         </ul>
       )}
+    </section>
+  )
+}
+
+function TableRules() {
+  const { data: me } = useMe()
+  const update = useUpdateCampaign()
+  if (!me) return null
+  const allowed = me.campaign.playersCanAddCoins
+  return (
+    <section className={`${card} p-4 sm:p-6`}>
+      <h2 className="text-xl font-semibold text-gray-100 mb-3">Reglas de la mesa</h2>
+      {update.error && <div className="mb-3"><ErrorBox>{errorMessage(update.error)}</ErrorBox></div>}
+      <label className="flex items-start gap-3 text-gray-300">
+        <input
+          type="checkbox"
+          checked={allowed}
+          disabled={update.isPending}
+          onChange={(e) => update.mutate({ playersCanAddCoins: e.target.checked })}
+          className="mt-1 w-4 h-4 accent-indigo-500"
+        />
+        <span>
+          Los jugadores pueden sumarse monedas
+          <span className="block text-sm text-gray-500">
+            Si lo apagas, gastan desde su bolsa pero las monedas nuevas (botín, pagos) se las das tú.
+            Las ventas a una tienda siempre las apruebas tú.
+          </span>
+        </span>
+      </label>
     </section>
   )
 }

@@ -1,5 +1,7 @@
 package com.caremao.storemanager.inventory;
 
+import static com.caremao.storemanager.common.Limits.MAX_COINS;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -33,8 +35,11 @@ public final class InventoryDtos {
             String playerName, String joinUrl, Instant updatedAt) {
     }
 
-    public record PurseInput(@PositiveOrZero int copper, @PositiveOrZero int silver, @PositiveOrZero int gold,
-            @PositiveOrZero int platinum) {
+    public record PurseInput(
+            @PositiveOrZero @Max(MAX_COINS) int copper,
+            @PositiveOrZero @Max(MAX_COINS) int silver,
+            @PositiveOrZero @Max(MAX_COINS) int gold,
+            @PositiveOrZero @Max(MAX_COINS) int platinum) {
     }
 
     public record CreateInventoryRequest(
@@ -62,9 +67,15 @@ public final class InventoryDtos {
     }
 
     /** Deltas con signo por denominación: positivos suman, negativos gastan. */
-    public record CurrencyChangeRequest(int copper, int silver, int gold, int platinum, @Size(max = 200) String note) {
+    public record CurrencyChangeRequest(
+            @Min(-MAX_COINS) @Max(MAX_COINS) int copper,
+            @Min(-MAX_COINS) @Max(MAX_COINS) int silver,
+            @Min(-MAX_COINS) @Max(MAX_COINS) int gold,
+            @Min(-MAX_COINS) @Max(MAX_COINS) int platinum,
+            @Size(max = 200) String note) {
     }
 
-    public record CurrencyConvertRequest(@NotNull Denomination from, @NotNull Denomination to, @Min(1) int amount) {
+    public record CurrencyConvertRequest(@NotNull Denomination from, @NotNull Denomination to,
+            @Min(1) @Max(MAX_COINS) int amount) {
     }
 }

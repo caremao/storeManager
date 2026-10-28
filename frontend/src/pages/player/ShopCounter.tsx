@@ -119,7 +119,9 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
 
       <section className={`${card} p-4 sm:p-6`}>
         <h2 className="text-xl font-semibold text-gray-100 mb-1">Vender a esta tienda</h2>
-        <p className="text-sm text-gray-400 mb-4">Paga el {shop.buybackPct}% del valor de cada cosa.</p>
+        <p className="text-sm text-gray-400 mb-4">
+          Paga el {shop.buybackPct}% del valor de cada cosa. El GM aprueba cada venta.
+        </p>
         <ItemsList
           items={sellable}
           priceOf={(item) => applyPct(item.valueCp, shop.buybackPct)}
@@ -130,7 +132,7 @@ function Counter({ shop, character }: { shop: Inventory; character: Inventory | 
             return (
               <QuantityAction
                 max={item.quantity}
-                actionLabel={direct(offer !== null) ? 'Vender' : 'Ofrecer'}
+                actionLabel="Ofrecer"
                 busy={request.isPending}
                 onConfirm={(q) => trade('SELL', item, q)}
                 summary={(q) => (offer === null ? 'el GM fija el precio' : `recibes ${formatCp(offer * q)}`)}

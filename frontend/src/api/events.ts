@@ -5,6 +5,8 @@ import { invalidateInventory } from './hooks'
 interface ChangeEvent {
   inventoryIds: string[]
   tradeIds: string[]
+  /** Cambiaron las reglas de la mesa (viajan en /api/me). */
+  campaign: boolean
 }
 
 const RETRY_MS = 5000
@@ -33,6 +35,7 @@ export function useCampaignEvents(enabled: boolean) {
         const data = JSON.parse((event as MessageEvent<string>).data) as ChangeEvent
         invalidateInventory(qc, ...data.inventoryIds)
         if (data.tradeIds.length > 0) qc.invalidateQueries({ queryKey: ['trades'] })
+        if (data.campaign) qc.invalidateQueries({ queryKey: ['me'] })
       })
       source.onerror = () => {
         // EventSource reintenta solo; si se cerró del todo (p. ej. sesión revocada) reintentamos nosotros.

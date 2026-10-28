@@ -107,6 +107,29 @@ class PurseTest {
                 .isInstanceOf(InsufficientFundsException.class);
     }
 
+    @Test
+    void overflowIsRejectedInsteadOfWrappingAround() {
+        Purse purse = new Purse(0, 0, Integer.MAX_VALUE - 5, 0);
+        assertThatThrownBy(() -> purse.apply(0, 0, 10, 0))
+                .isInstanceOf(ApiException.class)
+                .isNotInstanceOf(InsufficientFundsException.class)
+                .hasMessageContaining("tantas monedas");
+        assertThatThrownBy(() -> purse.receive(1_000L * 100)).isInstanceOf(ApiException.class);
+        assertPurse(purse, 0, 0, Integer.MAX_VALUE - 5, 0);
+
+        Purse rich = new Purse(0, 0, 0, Integer.MAX_VALUE);
+        assertThatThrownBy(() -> rich.convert(Denomination.PLATINUM, Denomination.COPPER, 3_000_000))
+                .isInstanceOf(ApiException.class);
+        assertPurse(rich, 0, 0, 0, Integer.MAX_VALUE);
+    }
+
+    @Test
+    void extremeNegativeDeltasDoNotFlipSign() {
+        Purse purse = new Purse(0, 0, 1, 0);
+        assertThatThrownBy(() -> purse.apply(Integer.MIN_VALUE, 0, 0, 0)).isInstanceOf(InsufficientFundsException.class);
+        assertPurse(purse, 0, 0, 1, 0);
+    }
+
     private static void assertPurse(Purse purse, int cp, int sp, int gp, int pp) {
         assertThat(new int[] { purse.getCopper(), purse.getSilver(), purse.getGold(), purse.getPlatinum() })
                 .as("cp, sp, gp, pp de %s", purse)

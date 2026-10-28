@@ -1,5 +1,6 @@
 package com.caremao.storemanager.item;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.caremao.storemanager.auth.Actor;
 import com.caremao.storemanager.common.ApiException;
+import com.caremao.storemanager.common.Limits;
 import com.caremao.storemanager.events.CampaignEvent;
 import com.caremao.storemanager.history.HistoryAction;
 import com.caremao.storemanager.history.HistoryService;
@@ -19,8 +21,12 @@ import com.caremao.storemanager.inventory.InventoryService;
 import com.caremao.storemanager.item.ItemDtos.ItemDto;
 import com.caremao.storemanager.item.ItemDtos.ItemRequest;
 
+import tools.jackson.databind.json.JsonMapper;
+
 @Service
 public class ItemService {
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final ItemRepository items;
     private final InventoryService inventories;
@@ -119,6 +125,30 @@ public class ItemService {
         if (request.srdIndex() != null) {
             item.setSrdIndex(request.srdIndex());
         }
-        item.setProperties(request.properties());
+        item.setProperties(requireReasonableProperties(request.properties()));
+    }
+
+    /** Las propiedades son JSON libre: se acotan su tamaño y su anidamiento para que no rompan la base. */
+    static Map<String, Object> requireReasonableProperties(Map<String, Object> properties) {
+        if (properties == null) {
+            return null;
+        }
+        if (depth(properties) > Limits.MAX_PROPERTIES_DEPTH) {
+            throw ApiException.badRequest("Las propiedades del item están demasiado anidadas");
+        }
+        if (JSON.writeValueAsString(properties).length() > Limits.MAX_PROPERTIES_CHARS) {
+            throw ApiException.badRequest("Las propiedades del item son demasiado grandes");
+        }
+        return properties;
+    }
+
+    private static int depth(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return 1 + map.values().stream().mapToInt(ItemService::depth).max().orElse(0);
+        }
+        if (value instanceof Collection<?> list) {
+            return 1 + list.stream().mapToInt(ItemService::depth).max().orElse(0);
+        }
+        return 0;
     }
 }

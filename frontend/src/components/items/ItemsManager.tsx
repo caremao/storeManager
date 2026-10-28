@@ -10,6 +10,7 @@ import { ItemFormModal } from './ItemFormModal'
 import { ItemsList } from './ItemsList'
 import { categoriesOf } from './filter'
 import { toInput } from './utils'
+import { characterValues } from './value'
 
 interface ItemsManagerProps {
   inventory: Inventory
@@ -86,6 +87,7 @@ export function ItemsManager({
         onItemClick={(item) => setSelectedId(item.id)}
         onAddClick={editable ? () => setForm({}) : undefined}
         priceOf={priceOf}
+        valuesOf={forShop ? undefined : (item) => characterValues(item, role)}
         showStock={forShop}
         renderFooter={renderFooter}
         emptyText={emptyText}

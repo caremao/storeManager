@@ -3,6 +3,7 @@ import { EyeOff, FlaskConical, Package, ScrollText, Sparkles, Sword, Tag } from 
 import type { Item, ItemType } from '../../api/types'
 import { Money } from '../ui/Money'
 import { RARITY_COLORS, RARITY_LABELS, TYPE_LABELS, keyStat } from './utils'
+import type { ValueLine } from './value'
 
 const TYPE_ICONS: Record<ItemType, ComponentType<{ className?: string }>> = {
   EQUIPMENT: Sword,
@@ -39,13 +40,15 @@ interface ItemCardProps {
   onClick?: () => void
   /** Precio a mostrar (p. ej. lo que cobra la tienda); se omite si es undefined. */
   price?: number | null
+  /** Valores a mostrar en un personaje (ver `characterValues`); reemplazan la etiqueta "Valor estimado". */
+  values?: ValueLine[]
   /** Tiendas: muestra "Agotado" o "∞" en vez de la cantidad. */
   showStock?: boolean
   /** Acciones bajo la tarjeta (fuera del área clickeable, para no anidar botones). */
   footer?: ReactNode
 }
 
-export function ItemCard({ item, onClick, price, showStock, footer }: ItemCardProps) {
+export function ItemCard({ item, onClick, price, values, showStock, footer }: ItemCardProps) {
   const rarity = RARITY_COLORS[item.rarity]
   const soldOut = showStock && !item.unlimitedStock && item.quantity === 0
   const stat = keyStat(item)
@@ -93,7 +96,7 @@ export function ItemCard({ item, onClick, price, showStock, footer }: ItemCardPr
               {item.negotiable && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-900/50 text-indigo-300">Negociable</span>
               )}
-              {!item.valueRevealed && (
+              {!item.valueRevealed && !values && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700 text-gray-300">
                   {item.perceivedValueCp === null ? 'Valor desconocido' : 'Valor estimado'}
                 </span>
@@ -101,6 +104,16 @@ export function ItemCard({ item, onClick, price, showStock, footer }: ItemCardPr
             </div>
             {price !== undefined && (
               <p className="mt-2"><Money cp={price} denomination={item.priceDenomination} /></p>
+            )}
+            {values && (
+              <dl className="mt-2 space-y-1">
+                {values.map(({ label, value }) => (
+                  <div key={label} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <dt className="text-xs text-gray-400">{label}</dt>
+                    <dd className="text-sm">{value}</dd>
+                  </div>
+                ))}
+              </dl>
             )}
           </div>
         </div>

@@ -4,6 +4,7 @@ import type { Item } from '../../api/types'
 import { ItemCard } from './ItemCard'
 import { ItemFilters } from './ItemFilters'
 import { useItemFilter } from './filter'
+import type { ValueLine } from './value'
 
 interface ItemsListProps {
   items: Item[]
@@ -12,6 +13,7 @@ interface ItemsListProps {
   /** Sin esto no se muestra el botón de agregar. */
   onAddClick?: () => void
   priceOf?: (item: Item) => number | null
+  valuesOf?: (item: Item) => ValueLine[]
   showStock?: boolean
   renderFooter?: (item: Item) => ReactNode
   emptyText?: string
@@ -24,6 +26,7 @@ export function ItemsList({
   onItemClick,
   onAddClick,
   priceOf,
+  valuesOf,
   showStock,
   renderFooter,
   emptyText = 'Todavía no hay nada aquí',
@@ -46,6 +49,7 @@ export function ItemsList({
               item={item}
               onClick={onItemClick ? () => onItemClick(item) : undefined}
               price={priceOf ? priceOf(item) : undefined}
+              values={valuesOf?.(item)}
               showStock={showStock}
               footer={renderFooter?.(item)}
             />

@@ -5,6 +5,7 @@ import { Money } from '../ui/Money'
 import { dangerButton, dangerSolidButton, primaryButton, secondaryButton } from '../ui/styles'
 import { ItemIcon } from './ItemCard'
 import { PROPERTY_LABELS, RARITY_COLORS, RARITY_LABELS, TYPE_LABELS, formatProperty } from './utils'
+import { characterValues } from './value'
 
 interface ItemDetailProps {
   item: Item
@@ -26,12 +27,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/**
- * Qué valor se muestra: en una tienda, el precio (y el valor base para el GM); en un personaje, el
- * real si el dueño lo conoce, o lo que cree que vale. El GM ve las dos cosas.
- */
+/** Qué valor se muestra: en una tienda, el precio (y el valor base para el GM); en un personaje, ver `characterValues`. */
 function ValueRows({ item, role }: { item: Item; role: 'gm' | 'player' }) {
-  const perceived = <Money cp={item.perceivedValueCp} denomination={item.perceivedDenomination} empty="desconocido" />
   if (item.priceCp !== null) {
     return (
       <>
@@ -40,17 +37,7 @@ function ValueRows({ item, role }: { item: Item; role: 'gm' | 'player' }) {
       </>
     )
   }
-  if (role === 'gm') {
-    return (
-      <>
-        <Row label="Valor real"><Money cp={item.valueCp} denomination={item.priceDenomination} empty="sin fijar" /></Row>
-        <Row label="El jugador cree">{item.valueRevealed ? <span className="text-gray-300">lo conoce</span> : perceived}</Row>
-      </>
-    )
-  }
-  return item.valueRevealed
-    ? <Row label="Valor"><Money cp={item.valueCp} denomination={item.priceDenomination} empty="sin precio" /></Row>
-    : <Row label="Valor estimado">{perceived}</Row>
+  return <>{characterValues(item, role).map(({ label, value }) => <Row key={label} label={label}>{value}</Row>)}</>
 }
 
 /** Panel lateral con el detalle del item (adaptado del proyecto original). */

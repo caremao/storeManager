@@ -66,6 +66,8 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
   pp o pc) y se muestra en ella. La bolsa permite convertir entre monedas.
 - **Valor real y percibido.** El GM fija el valor real de cada objeto. El jugador ve lo que cree que
   vale ("desconocido" o estimado) hasta que el GM se lo revela. Las tiendas tasan con el valor real.
+  La lista de un personaje muestra el valor en cada objeto: al jugador, el que conoce o el que cree;
+  al GM, el real y lo que cree el jugador.
 - **Categorías.** Cada objeto puede llevar una categoría libre ("Armas", "Pociones"…), desde el
   formulario (que sugiere las que ya hay en el inventario) o la columna `categoria` del CSV. Las
   listas, el mostrador y la vitrina se filtran con un buscador por nombre o categoría (sin importar

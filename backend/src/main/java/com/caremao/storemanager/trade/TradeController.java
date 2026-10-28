@@ -15,13 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.caremao.storemanager.auth.Actor;
 import com.caremao.storemanager.trade.TradeDtos.DirectTradeRequest;
-import com.caremao.storemanager.trade.TradeDtos.TradeApproveRequest;
+import com.caremao.storemanager.trade.TradeDtos.TradeCounterRequest;
 import com.caremao.storemanager.trade.TradeDtos.TradeCreateRequest;
 import com.caremao.storemanager.trade.TradeDtos.TradeDto;
 import com.caremao.storemanager.trade.TradeDtos.TradeRejectRequest;
 
 import jakarta.validation.Valid;
 
+/**
+ * Solicitudes y su negociación por turnos: en {@code PENDING} le toca al GM (aprobar, contraofertar,
+ * rechazar); en {@code COUNTERED}, al jugador (aceptar, volver a ofertar, cancelar).
+ */
 @RestController
 @RequestMapping("/api")
 public class TradeController {
@@ -50,9 +54,18 @@ public class TradeController {
     }
 
     @PostMapping("/trades/{id}/approve")
-    public TradeDto approve(Actor actor, @PathVariable UUID id,
-            @Valid @RequestBody(required = false) TradeApproveRequest body) {
-        return trades.approve(actor, id, body == null ? null : body.unitPriceCp());
+    public TradeDto approve(Actor actor, @PathVariable UUID id) {
+        return trades.approve(actor, id);
+    }
+
+    @PostMapping("/trades/{id}/accept")
+    public TradeDto accept(Actor actor, @PathVariable UUID id) {
+        return trades.accept(actor, id);
+    }
+
+    @PostMapping("/trades/{id}/counter")
+    public TradeDto counter(Actor actor, @PathVariable UUID id, @Valid @RequestBody TradeCounterRequest body) {
+        return trades.counter(actor, id, body.unitPriceCp());
     }
 
     @PostMapping("/trades/{id}/reject")

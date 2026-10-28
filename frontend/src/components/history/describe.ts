@@ -58,12 +58,17 @@ export function describe(entry: HistoryEntry): { text: string; detail: string | 
     case 'TRADE_EXECUTED': {
       const who = (d.characterName as string) ?? 'Alguien'
       const what = `${d.quantity}× ${entry.entityName}`
-      const price = formatMoney(Number(d.totalCp), d.priceDenomination as Denomination | null)
+      const denomination = d.priceDenomination as Denomination | null
+      const price = formatMoney(Number(d.totalCp), denomination)
+      const haggled = d.listUnitPriceCp != null && d.listUnitPriceCp !== d.unitPriceCp
       return {
         text: d.kind === 'SELL'
           ? `${who} vendió ${what} a ${where} por ${price}`
           : `${who} compró ${what} en ${where} por ${price}`,
-        detail: entry.actor === 'GM' ? 'aprobado por el GM' : null,
+        detail: [
+          haggled ? `regateado (lista ${formatMoney(Number(d.listUnitPriceCp), denomination)} c/u)` : null,
+          entry.actor === 'GM' ? 'aprobado por el GM' : null,
+        ].filter(Boolean).join(' · ') || null,
       }
     }
   }

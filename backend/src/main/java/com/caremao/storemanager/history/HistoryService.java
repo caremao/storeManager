@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -69,6 +70,7 @@ public class HistoryService {
         Page<HistoryEntry> result = scope == null
                 ? history.findByCampaignIdOrderByCreatedAtDesc(actor.campaignId(), pageable)
                 : history.findForInventory(actor.campaignId(), scope, pageable);
-        return new HistoryPage(result.map(HistoryEntryDto::of).getContent(), result.getTotalElements());
+        Function<HistoryEntry, HistoryEntryDto> toDto = actor.isGm() ? HistoryEntryDto::of : HistoryEntryDto::forPlayer;
+        return new HistoryPage(result.map(toDto).getContent(), result.getTotalElements());
     }
 }

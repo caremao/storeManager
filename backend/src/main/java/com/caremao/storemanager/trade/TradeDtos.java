@@ -17,21 +17,30 @@ public final class TradeDtos {
     private TradeDtos() {
     }
 
+    /**
+     * {@code unitPriceCp} es el precio que está sobre la mesa; {@code listUnitPriceCp}, el de la tienda
+     * al pedir; {@code lastOfferBy}, quién lo propuso (null = precio de lista).
+     */
     public record TradeDto(UUID id, UUID shopId, String shopName, UUID characterId, String characterName,
             UUID itemId, String itemName, TradeKind kind, int quantity, Long unitPriceCp, Long totalCp,
-            Denomination priceDenomination, TradeStatus status, String note, Instant createdAt, Instant resolvedAt) {
+            Long listUnitPriceCp, OfferBy lastOfferBy, Denomination priceDenomination, TradeStatus status,
+            String note, Instant createdAt, Instant resolvedAt) {
     }
 
-    /** Lo que pide un jugador desde el mostrador. */
+    /**
+     * Lo que pide un jugador desde el mostrador. {@code offerUnitPriceCp} propone otro precio: en una
+     * compra solo si el producto es negociable; en una venta, siempre.
+     */
     public record TradeCreateRequest(
             @NotNull TradeKind kind,
             @NotNull UUID itemId,
             @Min(1) @Max(10_000) int quantity,
+            @PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long offerUnitPriceCp,
             @Size(max = 500) String note) {
     }
 
-    /** {@code unitPriceCp} opcional: el GM puede cambiar el precio (regateo) al aprobar. */
-    public record TradeApproveRequest(@PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long unitPriceCp) {
+    /** Una contraoferta (del GM) o una nueva oferta (del jugador). */
+    public record TradeCounterRequest(@NotNull @PositiveOrZero @Max(Limits.MAX_VALUE_CP) Long unitPriceCp) {
     }
 
     public record TradeRejectRequest(@Size(max = 500) String note) {

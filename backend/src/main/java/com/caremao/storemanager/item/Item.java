@@ -50,6 +50,14 @@ public class Item {
     /** Moneda en que se fijó el precio, para mostrarlo igual ("3 pp"); null = oro. */
     @Enumerated(EnumType.STRING)
     private Denomination priceDenomination;
+    /** Lo que cree el dueño que vale; null = "desconocido". El real ({@code valueCp}) lo sabe el GM. */
+    private Long perceivedValueCp;
+    @Enumerated(EnumType.STRING)
+    private Denomination perceivedDenomination;
+    /** Si el dueño conoce el valor real (p. ej. lo compró, o lo identificó). */
+    private boolean valueRevealed = true;
+    /** En una tienda: acepta que el jugador ofrezca otro precio. */
+    private boolean negotiable;
     private String srdIndex;
 
     @Convert(converter = MapJsonConverter.class)
@@ -74,7 +82,10 @@ public class Item {
         updatedAt = Instant.now();
     }
 
-    /** Copia para otro inventario (al comprar o vender). No copia notas ni stock ilimitado. */
+    /**
+     * Copia para otro inventario (al comprar o vender). No copia notas, stock ilimitado ni si es
+     * negociable; quien recibe el objeto conoce su valor (lo pagó o lo tasó).
+     */
     public Item copyTo(UUID targetInventoryId, int quantity) {
         Item copy = new Item(targetInventoryId, name);
         copy.type = type;
@@ -85,6 +96,9 @@ public class Item {
         copy.weight = weight;
         copy.valueCp = valueCp;
         copy.priceDenomination = priceDenomination;
+        copy.perceivedValueCp = valueCp;
+        copy.perceivedDenomination = priceDenomination;
+        copy.valueRevealed = true;
         copy.srdIndex = srdIndex;
         copy.properties = properties == null ? null : new LinkedHashMap<>(properties);
         return copy;
@@ -104,6 +118,9 @@ public class Item {
         s.put("weight", weight);
         s.put("valueCp", valueCp);
         s.put("priceDenomination", priceDenomination == null ? null : priceDenomination.name());
+        s.put("perceivedValueCp", perceivedValueCp);
+        s.put("valueRevealed", valueRevealed);
+        s.put("negotiable", negotiable);
         return s;
     }
 
@@ -201,6 +218,38 @@ public class Item {
 
     public void setPriceDenomination(Denomination priceDenomination) {
         this.priceDenomination = priceDenomination;
+    }
+
+    public Long getPerceivedValueCp() {
+        return perceivedValueCp;
+    }
+
+    public void setPerceivedValueCp(Long perceivedValueCp) {
+        this.perceivedValueCp = perceivedValueCp;
+    }
+
+    public Denomination getPerceivedDenomination() {
+        return perceivedDenomination;
+    }
+
+    public void setPerceivedDenomination(Denomination perceivedDenomination) {
+        this.perceivedDenomination = perceivedDenomination;
+    }
+
+    public boolean isValueRevealed() {
+        return valueRevealed;
+    }
+
+    public void setValueRevealed(boolean valueRevealed) {
+        this.valueRevealed = valueRevealed;
+    }
+
+    public boolean isNegotiable() {
+        return negotiable;
+    }
+
+    public void setNegotiable(boolean negotiable) {
+        this.negotiable = negotiable;
     }
 
     public String getSrdIndex() {

@@ -14,10 +14,47 @@ interface ItemDetailProps {
   /** Acciones extra en el pie (p. ej. "Vender a…" o "Pedir"). */
   actions?: ReactNode
   notesLabel?: string
+  role: 'gm' | 'player'
+}
+
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-sm text-gray-400">{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  )
+}
+
+/**
+ * Qué valor se muestra: en una tienda, el precio (y el valor base para el GM); en un personaje, el
+ * real si el dueño lo conoce, o lo que cree que vale. El GM ve las dos cosas.
+ */
+function ValueRows({ item, role }: { item: Item; role: 'gm' | 'player' }) {
+  const perceived = <Money cp={item.perceivedValueCp} denomination={item.perceivedDenomination} empty="desconocido" />
+  if (item.priceCp !== null) {
+    return (
+      <>
+        <Row label="Precio en tienda"><Money cp={item.priceCp} denomination={item.priceDenomination} /></Row>
+        {role === 'gm' && <Row label="Valor base"><Money cp={item.valueCp} denomination={item.priceDenomination} /></Row>}
+      </>
+    )
+  }
+  if (role === 'gm') {
+    return (
+      <>
+        <Row label="Valor real"><Money cp={item.valueCp} denomination={item.priceDenomination} empty="sin fijar" /></Row>
+        <Row label="El jugador cree">{item.valueRevealed ? <span className="text-gray-300">lo conoce</span> : perceived}</Row>
+      </>
+    )
+  }
+  return item.valueRevealed
+    ? <Row label="Valor"><Money cp={item.valueCp} denomination={item.priceDenomination} empty="sin precio" /></Row>
+    : <Row label="Valor estimado">{perceived}</Row>
 }
 
 /** Panel lateral con el detalle del item (adaptado del proyecto original). */
-export function ItemDetail({ item, onClose, onEdit, onDelete, actions, notesLabel = 'Notas' }: ItemDetailProps) {
+export function ItemDetail({ item, onClose, onEdit, onDelete, actions, notesLabel = 'Notas', role }: ItemDetailProps) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const rarity = RARITY_COLORS[item.rarity]
@@ -83,17 +120,11 @@ export function ItemDetail({ item, onClose, onEdit, onDelete, actions, notesLabe
                 <dd className="font-medium text-gray-100">{item.weight} lb</dd>
               </div>
             )}
-            <div>
-              <dt className="text-sm text-gray-400">Valor</dt>
-              <dd><Money cp={item.valueCp} denomination={item.priceDenomination} /></dd>
-            </div>
-            {item.priceCp !== null && (
-              <div>
-                <dt className="text-sm text-gray-400">Precio en tienda</dt>
-                <dd><Money cp={item.priceCp} denomination={item.priceDenomination} /></dd>
-              </div>
-            )}
+            <ValueRows item={item} role={role} />
           </dl>
+          {item.negotiable && (
+            <p className="text-sm text-indigo-300">Negociable: se puede ofrecer otro precio.</p>
+          )}
 
           {properties.length > 0 && (
             <dl className="space-y-1">

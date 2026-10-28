@@ -13,7 +13,9 @@ import { InventoryFormModal } from './InventoryFormModal'
 
 export function GmDashboard() {
   const { data: inventories = [], isLoading } = useInventories()
-  const { data: pending = [] } = useTrades('PENDING')
+  const { data: trades = [] } = useTrades()
+  const pending = trades.filter((t) => t.status === 'PENDING')
+  const countered = trades.filter((t) => t.status === 'COUNTERED')
   const create = useCreateInventory()
   const [creating, setCreating] = useState<InventoryKind | null>(null)
   const shops = inventories.filter((i) => i.kind === 'SHOP')
@@ -31,6 +33,14 @@ export function GmDashboard() {
           )}
         </h2>
         <TradeList trades={pending} mode="gm" emptyText="Nadie está esperando en el mostrador." />
+        {countered.length > 0 && (
+          <>
+            <h3 className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+              Contraofertas esperando al jugador
+            </h3>
+            <TradeList trades={countered} mode="gm" />
+          </>
+        )}
       </section>
 
       <div className="grid lg:grid-cols-2 gap-6">

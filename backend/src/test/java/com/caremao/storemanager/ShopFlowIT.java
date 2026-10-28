@@ -69,8 +69,8 @@ class ShopFlowIT extends IntegrationTest {
                 "purse", Map.of("copper", 0, "silver", 0, "gold", 100, "platinum", 0)));
         String[] mira = createCharacter(gm, "Mira", 0);
         ApiClient player = join(mira[1]);
-        // El valor lo pone el jugador: si la venta fuera automática podría inventarse dinero.
-        String gem = addItem(player, mira[0], Map.of("name", "Ágata", "quantity", 2, "valueCp", 1_000));
+        // El valor real lo fija el GM; aun así la venta espera, porque el jugador puede editar sus items.
+        String gem = addItem(gm, mira[0], Map.of("name", "Ágata", "quantity", 2, "valueCp", 1_000));
 
         var sold = player.post("/api/shops/" + shop + "/trades", Map.of("kind", "SELL", "itemId", gem, "quantity", 1));
         assertThat(sold.status()).as(sold.body()).isEqualTo(201);

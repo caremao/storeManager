@@ -164,6 +164,38 @@ los datos en `./data`, que está sobre ZFS (`nass/stacks`).
 
 4. Arranque automático, como los otros `*-stack.service`. Ver `deploy/storemanager-stack.service`.
 
+### Actualizar a la última versión de `main`
+
+Una vez creado el stack, cada deploy es un solo comando en la shell de three, con tu usuario (no
+con sudo). La primera vez hay que bajar el script; después se actualiza solo en cada deploy:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caremao/storeManager/main/deploy/deploy.sh -o /opt/stacks/storemanager/deploy.sh && chmod +x /opt/stacks/storemanager/deploy.sh
+```
+
+```bash
+/opt/stacks/storemanager/deploy.sh
+```
+
+`deploy/deploy.sh` resuelve el último commit de `main` en GitHub. Si ya es el que corre, no hace
+nada. Si no:
+
+1. Baja ese código a `~/projects/storemanager` (borra la copia anterior) y construye
+   `storemanager:<sha corto>`. Mientras tanto la versión actual sigue atendiendo. Si la construcción
+   falla (lint, tests), no cambia nada.
+2. Para el contenedor y respalda `data/` en `backups/data-<fecha>-<versión anterior>.tar.gz`.
+3. Si `deploy/compose.yaml` cambió, lo copia al stack, muestra la diferencia y guarda el anterior en
+   `backups/`.
+4. Sube `STOREMANAGER_VERSION` en `.env` (no toca las demás claves), levanta el contenedor y espera
+   a que el healthcheck esté sano.
+5. Si no queda sano, vuelve solo a la versión anterior con la base del respaldo. La base con que
+   falló queda en `backups/data-fallida-…`.
+
+Opciones: `--dry-run` dice qué haría sin tocar nada, `--ref <sha|tag|rama>` despliega otro commit y
+`--force` rehace el deploy aunque esa versión ya esté corriendo. Para volver atrás, `--ref <sha>` usa
+la imagen vieja si todavía existe, pero no repone los datos: para eso, parar el contenedor y extraer
+el respaldo en el stack (`tar -xzf backups/data-….tar.gz`) antes de correrlo.
+
 ### Exponer a internet (Tailscale Funnel)
 
 Los teléfonos de los jugadores no tienen la CA de mkcert y la red de invitados no llega a THREE. Por

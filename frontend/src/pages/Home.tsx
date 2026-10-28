@@ -51,7 +51,7 @@ function GmLoginForm() {
       {login.error && <ErrorBox>{errorMessage(login.error)}</ErrorBox>}
       <div>
         <label htmlFor="login-slug" className={label}>Campaña</label>
-        <input id="login-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="los-gemflower"
+        <input id="login-slug" value={slug} onChange={(e) => setSlug(e.target.value)}
           autoCapitalize="none" autoComplete="username" className={input} />
       </div>
       <div>
@@ -97,7 +97,7 @@ function CreateCampaignForm() {
       {error && <ErrorBox>{error}</ErrorBox>}
       <div>
         <label htmlFor="new-name" className={label}>Nombre</label>
-        <input id="new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Los Gemflower" className={input} />
+        <input id="new-name" value={name} onChange={(e) => setName(e.target.value)} className={input} />
       </div>
       <div>
         <label htmlFor="new-pass" className={label}>Contraseña del GM</label>

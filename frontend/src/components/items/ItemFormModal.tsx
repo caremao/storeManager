@@ -4,17 +4,26 @@ import { errorMessage } from '../../api/client'
 import { useSrdSearch } from '../../api/hooks'
 import type { Item, ItemInput, ItemRarity, ItemType, SrdItem } from '../../api/types'
 import { useDebounce } from '../../hooks/useDebounce'
-import { cpToGp, formatCp, gpToCp } from '../../lib/coins'
+import {
+  formatMoney,
+  moneyValue,
+  moneyValueToCp,
+  naturalDenomination,
+  type MoneyValue,
+} from '../../lib/coins'
 import { ErrorBox } from '../ui/Feedback'
 import { Modal } from '../ui/Modal'
+import { MoneyInput } from '../ui/MoneyInput'
 import { input, label, primaryButton, secondaryButton } from '../ui/styles'
 import { ITEM_RARITIES, ITEM_TYPES, RARITY_LABELS, TYPE_LABELS } from './utils'
 
 interface ItemFormModalProps {
   /** Si viene, el formulario edita ese item; si no, crea uno nuevo. */
   item?: Item
-  /** Tiendas: permite stock 0 (agotado) y stock ilimitado. */
+  /** Tiendas: permite stock 0 (agotado), stock ilimitado y productos negociables. */
   forShop: boolean
+  /** El GM fija el valor real; el jugador solo anota cuánto cree que vale. */
+  role: 'gm' | 'player'
   notesLabel?: string
   onSubmit: (input: ItemInput) => Promise<unknown>
   onClose: () => void
@@ -30,7 +39,10 @@ interface FormState {
   quantity: string
   unlimitedStock: boolean
   weight: string
-  valueGp: string
+  value: MoneyValue
+  perceived: MoneyValue
+  valueRevealed: boolean
+  negotiable: boolean
   srdIndex: string | null
   properties: Record<string, unknown> | null
 }
@@ -46,7 +58,10 @@ function fromItem(item?: Item): FormState {
     quantity: String(item?.quantity ?? 1),
     unlimitedStock: item?.unlimitedStock ?? false,
     weight: item?.weight === null || item?.weight === undefined ? '' : String(item.weight),
-    valueGp: String(cpToGp(item?.valueCp)),
+    value: moneyValue(item?.valueCp, item?.priceDenomination),
+    perceived: moneyValue(item?.perceivedValueCp, item?.perceivedDenomination),
+    valueRevealed: item?.valueRevealed ?? true,
+    negotiable: item?.negotiable ?? false,
     srdIndex: item?.srdIndex ?? null,
     properties: item?.properties ?? null,
   }
@@ -76,7 +91,8 @@ function cleanSrdDescription(description: string | null): string {
     .trim()
 }
 
-export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, onClose }: ItemFormModalProps) {
+export function ItemFormModal({ item, forShop, role, notesLabel = 'Notas', onSubmit, onClose }: ItemFormModalProps) {
+  const gm = role === 'gm'
   const [form, setForm] = useState<FormState>(() => fromItem(item))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -105,7 +121,12 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
       category: srd.category ?? '',
       description: cleanSrdDescription(srd.description),
       weight: srd.weight === null ? '' : String(srd.weight),
-      valueGp: srd.valueCp === null ? f.valueGp : String(cpToGp(srd.valueCp)),
+      // El precio del SRD es el valor real para el GM y una estimación para el jugador.
+      ...(srd.valueCp === null
+        ? {}
+        : gm
+          ? { value: moneyValue(srd.valueCp, naturalDenomination(srd.valueCp)) }
+          : { perceived: moneyValue(srd.valueCp, naturalDenomination(srd.valueCp)) }),
       srdIndex: srd.index,
       properties: srd.properties,
     }))
@@ -121,7 +142,11 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
     if (Number.isNaN(quantity) || quantity < (forShop ? 0 : 1)) {
       return setError(forShop ? 'La cantidad no puede ser negativa' : 'La cantidad mínima es 1')
     }
-    const value = form.valueGp.trim() === '' ? null : gpToCp(parseFloat(form.valueGp.replace(',', '.')))
+    const value = moneyValueToCp(form.value)
+    const perceived = moneyValueToCp(form.perceived)
+    if (Number.isNaN(value) || Number.isNaN(perceived)) {
+      return setError('El valor tiene que ser un número (por ejemplo 2,5)')
+    }
     const weight = form.weight.trim() === '' ? null : parseFloat(form.weight.replace(',', '.'))
     setSaving(true)
     try {
@@ -135,7 +160,13 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
         quantity,
         unlimitedStock: forShop && form.unlimitedStock,
         weight: weight !== null && !Number.isNaN(weight) ? weight : null,
-        valueCp: value !== null && !Number.isNaN(value) ? value : null,
+        // Lo que no le toca al jugador se reenvía tal como estaba (el servidor lo ignora igual).
+        valueCp: gm ? value : (item?.valueCp ?? null),
+        priceDenomination: gm ? form.value.denomination : (item?.priceDenomination ?? null),
+        perceivedValueCp: perceived,
+        perceivedDenomination: form.perceived.denomination,
+        valueRevealed: gm ? form.valueRevealed : (item?.valueRevealed ?? false),
+        negotiable: gm && forShop && form.negotiable,
         srdIndex: form.srdIndex,
         properties: form.properties,
       })
@@ -164,7 +195,6 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
             setShowResults(true)
           }}
           onFocus={() => setShowResults(true)}
-          placeholder="longsword, potion of healing, rope…"
           className={`${input} pl-10 pr-10`}
         />
         {isFetching && (
@@ -189,7 +219,7 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
               <div className="text-sm text-gray-400">
                 {srd.category}
                 {` · ${srd.rarity ? RARITY_LABELS[srd.rarity] : 'rareza variable'}`}
-                {srd.valueCp !== null && ` · ${formatCp(srd.valueCp)}`}
+                {srd.valueCp !== null && ` · ${formatMoney(srd.valueCp, naturalDenomination(srd.valueCp))}`}
               </div>
             </button>
           ))}
@@ -250,18 +280,13 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
         <div>
           <label htmlFor="item-category" className={label}>Categoría</label>
           <input id="item-category" value={form.category} onChange={(e) => set('category', e.target.value)}
-            placeholder="Arma, Armadura, Equipo de aventurero…" className={input} />
+            className={input} />
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="item-quantity" className={label}>Cantidad</label>
             <input id="item-quantity" type="number" inputMode="numeric" min={forShop ? 0 : 1} value={form.quantity}
               disabled={form.unlimitedStock} onChange={(e) => set('quantity', e.target.value)} className={input} />
-          </div>
-          <div>
-            <label htmlFor="item-value" className={label}>Valor (po)</label>
-            <input id="item-value" type="number" inputMode="decimal" min={0} step="0.01" value={form.valueGp}
-              onChange={(e) => set('valueGp', e.target.value)} className={input} />
           </div>
           <div>
             <label htmlFor="item-weight" className={label}>Peso (lb)</label>
@@ -269,12 +294,49 @@ export function ItemFormModal({ item, forShop, notesLabel = 'Notas', onSubmit, o
               onChange={(e) => set('weight', e.target.value)} className={input} />
           </div>
         </div>
+        {gm ? (
+          <>
+            <div>
+              <label htmlFor="item-value" className={label}>{forShop ? 'Valor' : 'Valor real'}</label>
+              <MoneyInput id="item-value" value={form.value} onChange={(v) => set('value', v)} />
+            </div>
+            {!forShop && (
+              <>
+                <label className="flex items-center gap-2 text-gray-300">
+                  <input type="checkbox" checked={form.valueRevealed}
+                    onChange={(e) => set('valueRevealed', e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+                  El jugador conoce el valor real
+                </label>
+                {!form.valueRevealed && (
+                  <div>
+                    <label htmlFor="item-perceived" className={label}>
+                      Lo que cree el jugador que vale (vacío = desconocido)
+                    </label>
+                    <MoneyInput id="item-perceived" value={form.perceived} onChange={(v) => set('perceived', v)} />
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <div>
+            <label htmlFor="item-perceived" className={label}>Cuánto crees que vale (opcional)</label>
+            <MoneyInput id="item-perceived" value={form.perceived} onChange={(v) => set('perceived', v)} />
+          </div>
+        )}
         {forShop && (
-          <label className="flex items-center gap-2 text-gray-300">
-            <input type="checkbox" checked={form.unlimitedStock} onChange={(e) => set('unlimitedStock', e.target.checked)}
-              className="w-4 h-4 accent-indigo-500" />
-            Stock ilimitado (no se agota al vender)
-          </label>
+          <>
+            <label className="flex items-center gap-2 text-gray-300">
+              <input type="checkbox" checked={form.unlimitedStock}
+                onChange={(e) => set('unlimitedStock', e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+              Stock ilimitado (no se agota al vender)
+            </label>
+            <label className="flex items-center gap-2 text-gray-300">
+              <input type="checkbox" checked={form.negotiable}
+                onChange={(e) => set('negotiable', e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+              Negociable: el jugador puede ofrecer otro precio
+            </label>
+          </>
         )}
         <div>
           <label htmlFor="item-description" className={label}>Descripción</label>

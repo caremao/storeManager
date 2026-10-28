@@ -8,12 +8,14 @@ import { HistoryPanel } from '../../components/history/HistoryPanel'
 import { TradeList } from '../../components/trades/TradeList'
 import { ErrorBox, Spinner } from '../../components/ui/Feedback'
 import { card, primaryButton, smallButton } from '../../components/ui/styles'
-import { formatCp } from '../../lib/coins'
+import { Money } from '../../components/ui/Money'
 import { InventoryFormModal } from './InventoryFormModal'
 
 export function GmDashboard() {
   const { data: inventories = [], isLoading } = useInventories()
-  const { data: pending = [] } = useTrades('PENDING')
+  const { data: trades = [] } = useTrades()
+  const pending = trades.filter((t) => t.status === 'PENDING')
+  const countered = trades.filter((t) => t.status === 'COUNTERED')
   const create = useCreateInventory()
   const [creating, setCreating] = useState<InventoryKind | null>(null)
   const shops = inventories.filter((i) => i.kind === 'SHOP')
@@ -31,6 +33,14 @@ export function GmDashboard() {
           )}
         </h2>
         <TradeList trades={pending} mode="gm" emptyText="Nadie está esperando en el mostrador." />
+        {countered.length > 0 && (
+          <>
+            <h3 className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+              Contraofertas esperando al jugador
+            </h3>
+            <TradeList trades={countered} mode="gm" />
+          </>
+        )}
       </section>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -83,9 +93,9 @@ function InventorySection({ title, kind, items, onCreate }: {
                   </p>
                 </div>
                 {kind === 'SHOP' ? <ShopBadges shop={inv} /> : (
-                  <span className="flex items-center gap-1 text-sm text-yellow-400 whitespace-nowrap">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
                     <User className="w-4 h-4 text-gray-400" />
-                    {formatCp(inv.purse?.totalCp ?? 0)}
+                    <Money cp={inv.purse?.totalCp ?? 0} size="sm" />
                   </span>
                 )}
               </Link>

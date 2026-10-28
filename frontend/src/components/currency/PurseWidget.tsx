@@ -1,7 +1,7 @@
-import { Minus, Plus } from 'lucide-react'
+import { ArrowLeftRight, Minus, Plus } from 'lucide-react'
 import type { Purse } from '../../api/types'
-import { formatCp } from '../../lib/coins'
-import { card, dangerSolidButton, smallButton, successButton } from '../ui/styles'
+import { Money } from '../ui/Money'
+import { card, dangerSolidButton, secondaryButton, smallButton, successButton } from '../ui/styles'
 
 interface PurseWidgetProps {
   title: string
@@ -9,6 +9,7 @@ interface PurseWidgetProps {
   unlimited?: boolean
   onAdd?: () => void
   onSpend?: () => void
+  onConvert?: () => void
 }
 
 const COINS = [
@@ -19,13 +20,13 @@ const COINS = [
 ] as const
 
 /** Bolsa o caja (adaptado del TreasuryWidget del proyecto original). */
-export function PurseWidget({ title, purse, unlimited, onAdd, onSpend }: PurseWidgetProps) {
+export function PurseWidget({ title, purse, unlimited, onAdd, onSpend, onConvert }: PurseWidgetProps) {
   return (
     <div className={`${card} p-4 sm:p-6`}>
-      <div className="flex items-center justify-between gap-4 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
-        {(onAdd || onSpend) && (
-          <div className="flex gap-2">
+        {!unlimited && (onAdd || onSpend || onConvert) && (
+          <div className="flex flex-wrap gap-2">
             {onAdd && (
               <button type="button" onClick={onAdd} className={`${successButton} ${smallButton}`}>
                 <Plus className="w-4 h-4" />
@@ -38,6 +39,12 @@ export function PurseWidget({ title, purse, unlimited, onAdd, onSpend }: PurseWi
                 Gastar
               </button>
             )}
+            {onConvert && (
+              <button type="button" onClick={onConvert} className={`${secondaryButton} ${smallButton}`}>
+                <ArrowLeftRight className="w-4 h-4" />
+                Convertir
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -48,13 +55,13 @@ export function PurseWidget({ title, purse, unlimited, onAdd, onSpend }: PurseWi
           <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-3">
             {COINS.map((coin) => (
               <div key={coin.key} className={`rounded-lg p-3 text-center ${coin.className}`}>
-                <p className="text-2xl font-bold">{purse?.[coin.key] ?? 0}</p>
+                <p className="text-2xl font-bold">{(purse?.[coin.key] ?? 0).toLocaleString('es')}</p>
                 <p className="text-xs font-medium opacity-80">{coin.label}</p>
               </div>
             ))}
           </div>
           <p className="text-center text-gray-400 text-sm">
-            Total: <span className="font-semibold text-gray-300">{formatCp(purse?.totalCp ?? 0)}</span>
+            Total: <Money cp={purse?.totalCp ?? 0} size="sm" />
           </p>
         </>
       )}

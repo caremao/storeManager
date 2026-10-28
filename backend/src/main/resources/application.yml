@@ -49,5 +49,5 @@ app:
   # Clave del portal /admin (todas las campañas). Vacía o de menos de 16 caracteres: el portal no existe.
   admin-key: ""
   admin-session-ttl: 12h
-  # Tope del cuerpo de cualquier pedido (256 KB): un item con descripción larga entra holgado.
-  max-request-bytes: 262144
+  # Tope del cuerpo de cualquier pedido (1 MB): lo que más pesa es importar un CSV con descripciones largas.
+  max-request-bytes: 1048576

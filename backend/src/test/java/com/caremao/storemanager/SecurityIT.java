@@ -50,7 +50,7 @@ class SecurityIT extends IntegrationTest {
 
     @Test
     void oversizedBodiesAreCutBeforeBeingRead() {
-        String huge = "{\"name\":\"" + "z".repeat(300_000) + "\",\"passphrase\":\"secreto-largo\"}";
+        String huge = "{\"name\":\"" + "z".repeat(1_100_000) + "\",\"passphrase\":\"secreto-largo\"}";
         Response withLength = browser().sendRaw("POST", "/api/campaigns", BodyPublishers.ofString(huge), Map.of());
         assertThat(withLength.status()).isEqualTo(413);
 
@@ -58,7 +58,7 @@ class SecurityIT extends IntegrationTest {
                 BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(huge.getBytes(StandardCharsets.UTF_8))), Map.of());
         assertThat(chunked.status()).as("sin Content-Length también se corta").isEqualTo(413);
 
-        String big = "{\"name\":\"" + "z".repeat(100_000) + "\",\"passphrase\":\"secreto-largo\"}";
+        String big = "{\"name\":\"" + "z".repeat(300_000) + "\",\"passphrase\":\"secreto-largo\"}";
         assertThat(browser().sendRaw("POST", "/api/campaigns", BodyPublishers.ofString(big), Map.of()).status())
                 .as("bajo el tope llega a la validación").isEqualTo(400);
     }

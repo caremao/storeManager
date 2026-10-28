@@ -117,7 +117,7 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
 - **Seguridad.**
   - Las escrituras a la API que no vienen de la propia app se rechazan, según `Sec-Fetch-Site` o
     `Origin`. `SameSite` no alcanza, porque Foundry y los demás `*.srv.home.arpa` son "same-site".
-  - Ningún pedido puede pasar de 256 KB (`app.max-request-bytes`).
+  - Ningún pedido puede pasar de 1 MB (`app.max-request-bytes`), ni siquiera un CSV importado.
   - El login del GM admite 5 fallos por IP y 30 por campaña cada 15 minutos. Solo se cree en
     `X-Forwarded-For` cuando llega de loopback o de una red de Docker, es decir, de Funnel o de Caddy.
   - Cantidades, precios y monedas tienen topes (ver `common/Limits.java`) y la aritmética no desborda.

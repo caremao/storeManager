@@ -10,7 +10,7 @@ import { Money } from '../ui/Money'
 import { primaryButton, secondaryButton, smallButton } from '../ui/styles'
 
 /** El mismo tope que el servidor (app.max-request-bytes). */
-const MAX_BYTES = 256 * 1024
+const MAX_BYTES = 1024 * 1024
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
@@ -49,12 +49,13 @@ export function CsvImport({ inventoryId }: { inventoryId: string }) {
   const pick = async (picked: File | undefined) => {
     if (!picked) return
     close()
-    if (picked.size > MAX_BYTES) {
+    // Se envía en UTF-8, y un CSV de Excel en Windows-1252 crece un poco al convertirlo.
+    const csv = picked.size > MAX_BYTES ? null : await readCsv(picked)
+    if (csv === null || new Blob([csv]).size > MAX_BYTES) {
       setFile({ name: picked.name, csv: '' })
-      setError('El archivo pasa de 256 KB: divídelo en partes.')
+      setError('El archivo pasa de 1 MB: divídelo en partes.')
       return
     }
-    const csv = await readCsv(picked)
     setFile({ name: picked.name, csv })
     try {
       setPreview(await importer.mutateAsync({ csv, dryRun: true }))

@@ -25,6 +25,8 @@ interface ItemFormModalProps {
   /** El GM fija el valor real; el jugador solo anota cuánto cree que vale. */
   role: 'gm' | 'player'
   notesLabel?: string
+  /** Las categorías que ya se usan en el inventario, como sugerencias para no escribirlas distinto. */
+  categories?: string[]
   onSubmit: (input: ItemInput) => Promise<unknown>
   onClose: () => void
 }
@@ -93,7 +95,15 @@ function cleanSrdDescription(description: string | null): string {
     .trim()
 }
 
-export function ItemFormModal({ item, forShop, role, notesLabel = 'Notas', onSubmit, onClose }: ItemFormModalProps) {
+export function ItemFormModal({
+  item,
+  forShop,
+  role,
+  notesLabel = 'Notas',
+  categories = [],
+  onSubmit,
+  onClose,
+}: ItemFormModalProps) {
   const gm = role === 'gm'
   const [form, setForm] = useState<FormState>(() => fromItem(item))
   const [error, setError] = useState<string | null>(null)
@@ -283,7 +293,11 @@ export function ItemFormModal({ item, forShop, role, notesLabel = 'Notas', onSub
         <div>
           <label htmlFor="item-category" className={label}>Categoría</label>
           <input id="item-category" value={form.category} onChange={(e) => set('category', e.target.value)}
+            list="item-categories" maxLength={100} autoComplete="off" placeholder="Armas, Pociones, Herramientas…"
             className={input} />
+          <datalist id="item-categories">
+            {categories.map((c) => <option key={c} value={c} />)}
+          </datalist>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>

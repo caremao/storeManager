@@ -5,6 +5,9 @@ import { errorMessage, isStatus } from '../api/client'
 import { useMe, useStorefront } from '../api/hooks'
 import type { StorefrontItem } from '../api/types'
 import { ItemCard, type CardItem } from '../components/items/ItemCard'
+import { ItemFilters } from '../components/items/ItemFilters'
+import { NothingHere } from '../components/items/ItemsList'
+import { useItemFilter } from '../components/items/filter'
 import { PROPERTY_LABELS, RARITY_LABELS, TYPE_LABELS, formatProperty } from '../components/items/utils'
 import { EmptyState, ErrorBox, Spinner } from '../components/ui/Feedback'
 import { Modal } from '../components/ui/Modal'
@@ -56,15 +59,29 @@ export function Storefront() {
       {shop.items.length === 0 ? (
         <EmptyState title="No hay nada a la vista" />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {shop.items.map((item) => (
-            <ItemCard key={item.id} item={toCard(item)} price={item.priceCp} showStock onClick={() => setDetail(item)} />
-          ))}
-        </div>
+        <Showcase items={shop.items} onItemClick={setDetail} />
       )}
 
       {detail && <StorefrontDetail item={detail} onClose={() => setDetail(null)} />}
     </div>
+  )
+}
+
+function Showcase({ items, onItemClick }: { items: StorefrontItem[]; onItemClick: (item: StorefrontItem) => void }) {
+  const filter = useItemFilter(items)
+  return (
+    <section className="space-y-4">
+      <ItemFilters filter={filter} />
+      {filter.visible.length === 0 ? (
+        <NothingHere filtered={filter.filtered} emptyText="No hay nada a la vista" onClear={filter.clear} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filter.visible.map((item) => (
+            <ItemCard key={item.id} item={toCard(item)} price={item.priceCp} showStock onClick={() => onItemClick(item)} />
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -87,6 +104,12 @@ function StorefrontDetail({ item, onClose }: { item: StorefrontItem; onClose: ()
           <dt className="text-sm text-gray-400">Tipo</dt>
           <dd className="font-medium text-gray-100">{TYPE_LABELS[item.type]} · {RARITY_LABELS[item.rarity]}</dd>
         </div>
+        {item.category && (
+          <div>
+            <dt className="text-sm text-gray-400">Categoría</dt>
+            <dd className="font-medium text-gray-100">{item.category}</dd>
+          </div>
+        )}
         {item.weight !== null && (
           <div>
             <dt className="text-sm text-gray-400">Peso</dt>

@@ -29,10 +29,15 @@ public abstract class IntegrationTest {
     protected ApiClient newGm() {
         ApiClient gm = browser();
         var response = gm.post("/api/campaigns", Map.of(
-                "name", "Prueba " + UUID.randomUUID(),
+                "name", uniqueCampaignName("Prueba"),
                 "passphrase", "secreto-largo"));
         assertThat(response.status()).as(response.body()).isEqualTo(201);
         return gm;
+    }
+
+    /** Un nombre de campaña válido (una palabra de letras y números) que no choca con el de otro test. */
+    protected static String uniqueCampaignName(String prefix) {
+        return prefix + UUID.randomUUID().toString().replace("-", "");
     }
 
     protected static String slugOf(ApiClient gm) {

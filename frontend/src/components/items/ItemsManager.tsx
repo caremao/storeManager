@@ -8,6 +8,7 @@ import { card, secondaryButton } from '../ui/styles'
 import { ItemDetail } from './ItemDetail'
 import { ItemFormModal } from './ItemFormModal'
 import { ItemsList } from './ItemsList'
+import { categoriesOf } from './filter'
 import { toInput } from './utils'
 
 interface ItemsManagerProps {
@@ -107,6 +108,7 @@ export function ItemsManager({
           forShop={forShop}
           role={role}
           notesLabel={notesLabel}
+          categories={categoriesOf(items).map((c) => c.label)}
           onSubmit={(input) => save.mutateAsync({ id: form.item?.id, input })}
           onClose={() => setForm(null)}
         />

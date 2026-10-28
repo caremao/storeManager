@@ -51,8 +51,8 @@ public class ItemCsvImporter {
     }
 
     /** {@code merges}: se suma a un item que ya existe con ese nombre (o a una fila anterior del archivo). */
-    public record PreviewRow(int row, String name, int quantity, Long valueCp, Denomination denomination,
-            boolean merges) {
+    public record PreviewRow(int row, String name, String category, int quantity, Long valueCp,
+            Denomination denomination, boolean merges) {
     }
 
     public record ImportResult(List<PreviewRow> rows, List<RowError> errors, int imported) {
@@ -112,7 +112,8 @@ public class ItemCsvImporter {
                         + " unidades"));
             }
             totals.put(key(d.name()), (int) Math.min(total, Limits.MAX_QUANTITY));
-            preview.add(new PreviewRow(d.row(), d.name(), d.quantity(), d.valueCp(), d.denomination(), merges));
+            preview.add(new PreviewRow(d.row(), d.name(), d.category(), d.quantity(), d.valueCp(), d.denomination(),
+                    merges));
         }
         errors.sort((a, b) -> Integer.compare(a.row(), b.row()));
         if (dryRun || !errors.isEmpty()) {

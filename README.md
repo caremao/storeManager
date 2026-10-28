@@ -66,7 +66,14 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
   pp o pc) y se muestra en ella. La bolsa permite convertir entre monedas.
 - **Valor real y percibido.** El GM fija el valor real de cada objeto. El jugador ve lo que cree que
   vale ("desconocido" o estimado) hasta que el GM se lo revela. Las tiendas tasan con el valor real.
+- **Categorías.** Cada objeto puede llevar una categoría libre ("Armas", "Pociones"…), desde el
+  formulario (que sugiere las que ya hay en el inventario) o la columna `categoria` del CSV. Las
+  listas, el mostrador y la vitrina se filtran con un buscador por nombre o categoría (sin importar
+  tildes ni mayúsculas) y con un botón por categoría.
 - **Acceso.**
+  - El nombre de una campaña es una sola palabra de letras sin tilde y números (hasta 48), y es lo
+    que el GM escribe en «Campaña» para entrar. No puede repetirse; las campañas creadas antes de
+    esta regla conservan su nombre y su slug.
   - El GM entra con la contraseña de la campaña (8 a 72 bytes, guardada con bcrypt).
   - Por encima de las campañas solo está el portal `/admin`, y solo si el servidor tiene `ADMIN_KEY`
     (ver abajo).

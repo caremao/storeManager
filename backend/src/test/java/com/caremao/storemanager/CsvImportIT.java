@@ -41,16 +41,17 @@ class CsvImportIT extends IntegrationTest {
     void importsExcelStyleCsvWithSemicolonsDecimalCommaAndMultilineCells() {
         ApiClient gm = newGm();
         String shop = createShop(gm, "Bazar", Map.of());
-        String csv = "﻿Nombre;Tipo;Rareza;Cantidad;Valor;Moneda;Negociable;Oculto;Descripción\r\n"
-                + "Cuerda de seda;Varios;Común;4;3;pp;no;no;\"Resistente,\r\nliviana\"\r\n"
-                + "Anillo;Varios;Raro;1;2,5;ppt;sí;sí;\r\n"
-                + "Perla negra;Varios;Muy rara;1;1;po;no;no;\r\n"
-                + ";;;;;;;;\r\n";
+        String csv = "﻿Nombre;Tipo;Rareza;Categoría;Cantidad;Valor;Moneda;Negociable;Oculto;Descripción\r\n"
+                + "Cuerda de seda;Varios;Común;Aventura;4;3;pp;no;no;\"Resistente,\r\nliviana\"\r\n"
+                + "Anillo;Varios;Raro;Joyas;1;2,5;ppt;sí;sí;\r\n"
+                + "Perla negra;Varios;Muy rara;;1;1;po;no;no;\r\n"
+                + ";;;;;;;;;\r\n";
 
         Response preview = upload(gm, shop, csv, true);
         assertThat(preview.status()).as(preview.body()).isEqualTo(200);
         assertThat(preview.json().get("errors")).isEmpty();
         assertThat(preview.json().get("rows")).hasSize(3);
+        assertThat(preview.json().get("rows").get(1).get("category").asString()).isEqualTo("Joyas");
         assertThat(gm.get("/api/inventories/" + shop + "/items").json()).as("la vista previa no escribe").isEmpty();
 
         Response done = upload(gm, shop, csv, false);
@@ -61,6 +62,8 @@ class CsvImportIT extends IntegrationTest {
         assertThat(rope.get("valueCp").asLong()).isEqualTo(30);
         assertThat(rope.get("priceDenomination").asString()).isEqualTo("SILVER");
         assertThat(rope.get("description").asString()).isEqualTo("Resistente,\r\nliviana");
+        assertThat(rope.get("category").asString()).isEqualTo("Aventura");
+        assertThat(findByName(stock, "Perla negra").get("category").isNull()).as("celda vacía").isTrue();
         JsonNode ring = findByName(stock, "Anillo");
         assertThat(ring.get("valueCp").asLong()).isEqualTo(2_500);
         assertThat(ring.get("rarity").asString()).isEqualTo("RARE");

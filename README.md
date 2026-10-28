@@ -46,8 +46,8 @@ cd backend && ./mvnw verify
   precios, historial y slugs.
 - **Tests de integración (`*IT`):** levantan la app y hablan por HTTP real, con cookies y SSE. Cubren
   el flujo de compra con aprobación, la compra directa, la venta, los permisos por rol y la carrera por
-  la última unidad, el regateo, el valor oculto, la vitrina, los objetos ocultos y la importación
-  CSV. `SecurityIT`, `ValidationIT` y `UntrustedProxyIT` prueban entradas hostiles: pedidos de otros
+  la última unidad, el regateo, el valor oculto, la vitrina, los objetos ocultos, la importación
+  CSV y el portal admin. `SecurityIT`, `ValidationIT` y `UntrustedProxyIT` prueban entradas hostiles: pedidos de otros
   sitios, cuerpos gigantes, rotación de IPs en el login, números fuera de rango.
 - **Migraciones (`MigrationTest`):** migra una base con datos como los de THREE hasta la última versión.
 
@@ -66,8 +66,9 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
 - **Valor real y percibido.** El GM fija el valor real de cada objeto. El jugador ve lo que cree que
   vale ("desconocido" o estimado) hasta que el GM se lo revela. Las tiendas tasan con el valor real.
 - **Acceso.**
-  - El GM entra con la contraseña de la campaña (8 a 72 bytes, guardada con bcrypt). No hay una
-    contraseña maestra por encima de las campañas.
+  - El GM entra con la contraseña de la campaña (8 a 72 bytes, guardada con bcrypt).
+  - Por encima de las campañas solo está el portal `/admin`, y solo si el servidor tiene `ADMIN_KEY`
+    (ver abajo).
   - Cada personaje tiene un token de 128 bits. El QR lleva a `/join#<token>`: al ir en el fragmento,
     el navegador no lo envía al servidor y no queda en logs. La SPA lo cambia por una cookie `HttpOnly`.
   - "Nuevo QR" revoca el anterior y cierra las sesiones que lo usaban.
@@ -89,6 +90,17 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
   completa lo que falte desde el catálogo.
 - **Reglas de la mesa.** El GM decide, desde el panel, si los jugadores pueden sumarse monedas solos.
   Gastar siempre pueden.
+- **Portal admin (`/admin`).** Muestra todas las campañas del servidor con sus tiendas, personajes,
+  objetos, solicitudes abiertas, último movimiento y sesiones abiertas. Desde ahí se puede:
+  - **Entrar como GM** a cualquier campaña sin su contraseña; después se usa el panel de siempre.
+  - **Cambiar la contraseña del GM**, que cierra las sesiones de GM de esa campaña.
+  - **Cerrar sesiones** sueltas. Un jugador sacado así puede volver con su QR; para impedirlo, "Nuevo QR".
+  - **Borrar una campaña** con todo lo que tiene, confirmando con su nombre.
+
+  Se entra con `ADMIN_KEY` (16 caracteres o más; sin ella el portal no existe y `/api/admin` responde 404).
+  La sesión dura 12 horas, vive en memoria (reiniciar la app la cierra) y su cookie `sm_admin` solo
+  viaja a `/api/admin`. La clave tiene el mismo límite de intentos que el login del GM, y cada acción
+  queda en el log del contenedor.
 - **Seguridad.**
   - Las escrituras a la API que no vienen de la propia app se rechazan, según `Sec-Fetch-Site` o
     `Origin`. `SameSite` no alcanza, porque Foundry y los demás `*.srv.home.arpa` son "same-site".
@@ -157,6 +169,12 @@ eso, para jugar desde cualquier red, se publica con Funnel en el puerto 8443 (el
 `APP_PUBLIC_BASE_URL` decide adónde apuntan los QR. Los links se arman al mostrarlos, así que al
 cambiarla los QR de la pantalla "Mesa" se actualizan solos. Los teléfonos que ya entraron conservan su
 sesión, pero en el otro host.
+
+### Portal admin
+
+En `/opt/stacks/storemanager/.env`, `ADMIN_KEY=<algo largo>` (16 caracteres o más, distinta de
+`CAMPAIGN_CREATION_KEY`). Después, `docker compose up -d` y entrar a `/admin`. Para cambiar la clave,
+editar el `.env` y volver a levantar: el reinicio cierra las sesiones abiertas del portal.
 
 ## Licencias
 

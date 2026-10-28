@@ -1,6 +1,7 @@
 package com.caremao.storemanager.auth;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,6 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 public interface AppSessionRepository extends JpaRepository<AppSession, UUID> {
 
     Optional<AppSession> findByTokenHash(String tokenHash);
+
+    List<AppSession> findByCampaignIdAndExpiresAtAfterOrderByCreatedAtDesc(UUID campaignId, Instant now);
+
+    List<AppSession> findByCampaignId(UUID campaignId);
+
+    List<AppSession> findByCampaignIdAndRole(UUID campaignId, Role role);
 
     @Transactional
     @Modifying

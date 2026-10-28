@@ -22,6 +22,13 @@ class AccessIT extends IntegrationTest {
     }
 
     @Test
+    void withoutAnAdminKeyThePortalDoesNotExist() {
+        ApiClient anonymous = browser();
+        assertThat(anonymous.get("/api/admin/session").status()).isEqualTo(404);
+        assertThat(anonymous.post("/api/admin/login", Map.of("key", "cualquier-cosa-larga")).status()).isEqualTo(404);
+    }
+
+    @Test
     void playersOnlySeeTheirCharacterAndOpenShops() {
         ApiClient gm = newGm();
         String open = createShop(gm, "Abierta", Map.of("visibleToPlayers", true));

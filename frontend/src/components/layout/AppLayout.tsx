@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, Store } from 'lucide-react'
+import { LogOut, ShieldCheck, Store } from 'lucide-react'
 import { useCampaignEvents } from '../../api/events'
-import { useLogout, useMe } from '../../api/hooks'
+import { useAdminStatus, useLogout, useMe } from '../../api/hooks'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -10,9 +10,11 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout() {
   const { data: me } = useMe()
+  // Solo el GM pregunta por el portal: un jugador nunca tiene sesión ahí.
+  const { data: admin } = useAdminStatus(me?.role === 'GM')
   const logout = useLogout()
   const navigate = useNavigate()
-  useCampaignEvents(!!me)
+  useCampaignEvents(me?.campaign.id ?? null)
 
   const handleLogout = async () => {
     await logout.mutateAsync().catch(() => undefined)
@@ -33,6 +35,11 @@ export function AppLayout() {
                 <>
                   <NavLink to="/gm" end className={navClass}>Panel</NavLink>
                   <NavLink to="/gm/mesa" className={navClass}>Mesa</NavLink>
+                  {admin === 'in' && (
+                    <NavLink to="/admin" className={navClass} title="Portal admin">
+                      <ShieldCheck className="w-4 h-4" aria-label="Portal admin" />
+                    </NavLink>
+                  )}
                 </>
               ) : (
                 <>

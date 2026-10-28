@@ -41,6 +41,30 @@ public class AppSession {
         this.expiresAt = expiresAt;
     }
 
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getCampaignId() {
+        return campaignId;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public UUID getCharacterId() {
+        return characterId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
     public boolean isExpired(Instant now) {
         return !expiresAt.isAfter(now);
     }

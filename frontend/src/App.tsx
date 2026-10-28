@@ -5,6 +5,7 @@ import { Home } from './pages/Home'
 import { Join } from './pages/Join'
 import { NotFound } from './pages/NotFound'
 import { Storefront } from './pages/Storefront'
+import { AdminPortal } from './pages/admin/AdminPortal'
 import { GmDashboard } from './pages/gm/GmDashboard'
 import { GmInventory } from './pages/gm/GmInventory'
 import { GmTable } from './pages/gm/GmTable'
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/join" element={<Join />} />
           <Route path="/join/:token" element={<Join />} />
           <Route path="/vitrina" element={<Storefront />} />
+          <Route path="/admin" element={<AdminPortal />} />
           <Route element={<RequireRole role="GM" />}>
             <Route path="/gm" element={<GmDashboard />} />
             <Route path="/gm/mesa" element={<GmTable />} />

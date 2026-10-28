@@ -3,6 +3,7 @@ package com.caremao.storemanager.campaign;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
@@ -58,6 +59,16 @@ public class CampaignService {
         }
         events.publishEvent(CampaignEvent.rules(campaign.getId()));
         return CampaignDto.of(campaign);
+    }
+
+    /** Contraseña nueva puesta desde el portal admin; cerrar las sesiones de GM le toca a quien llama. */
+    @Transactional
+    public Campaign resetPassphrase(UUID campaignId, String passphrase) {
+        requireHashablePassphrase(passphrase);
+        Campaign campaign = campaigns.findById(campaignId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Campaña no encontrada"));
+        campaign.setGmPassphraseHash(encoder.encode(passphrase));
+        return campaign;
     }
 
     /** bcrypt ignora (o rechaza) lo que pase de 72 bytes; con tildes eso son menos de 72 caracteres. */

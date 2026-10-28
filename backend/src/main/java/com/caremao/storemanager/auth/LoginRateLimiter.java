@@ -28,6 +28,8 @@ public class LoginRateLimiter {
     static final int MAX_FAILURES_PER_CAMPAIGN = 30;
     static final Duration WINDOW = Duration.ofMinutes(15);
     static final int MAX_TRACKED_CLIENTS = 10_000;
+    /** La clave del portal admin cuenta como una campaña más; un slug nunca lleva ":". */
+    public static final String ADMIN = ":admin";
 
     private final Clock clock;
     private final Map<String, Deque<Instant>> byClient = new ConcurrentHashMap<>();
@@ -61,6 +63,11 @@ public class LoginRateLimiter {
 
     public void reset(String clientIp) {
         byClient.remove(clientIp);
+    }
+
+    /** Tras una contraseña nueva, los fallos contra la vieja ya no cuentan. */
+    public void resetCampaign(String slug) {
+        byCampaign.remove(slug);
     }
 
     int trackedClients() {

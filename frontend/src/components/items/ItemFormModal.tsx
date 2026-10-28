@@ -43,6 +43,7 @@ interface FormState {
   perceived: MoneyValue
   valueRevealed: boolean
   negotiable: boolean
+  hidden: boolean
   srdIndex: string | null
   properties: Record<string, unknown> | null
 }
@@ -62,6 +63,7 @@ function fromItem(item?: Item): FormState {
     perceived: moneyValue(item?.perceivedValueCp, item?.perceivedDenomination),
     valueRevealed: item?.valueRevealed ?? true,
     negotiable: item?.negotiable ?? false,
+    hidden: item?.hidden ?? false,
     srdIndex: item?.srdIndex ?? null,
     properties: item?.properties ?? null,
   }
@@ -167,6 +169,7 @@ export function ItemFormModal({ item, forShop, role, notesLabel = 'Notas', onSub
         perceivedDenomination: form.perceived.denomination,
         valueRevealed: gm ? form.valueRevealed : (item?.valueRevealed ?? false),
         negotiable: gm && forShop && form.negotiable,
+        hidden: gm && forShop && form.hidden,
         srdIndex: form.srdIndex,
         properties: form.properties,
       })
@@ -335,6 +338,11 @@ export function ItemFormModal({ item, forShop, role, notesLabel = 'Notas', onSub
               <input type="checkbox" checked={form.negotiable}
                 onChange={(e) => set('negotiable', e.target.checked)} className="w-4 h-4 accent-indigo-500" />
               Negociable: el jugador puede ofrecer otro precio
+            </label>
+            <label className="flex items-center gap-2 text-gray-300">
+              <input type="checkbox" checked={form.hidden}
+                onChange={(e) => set('hidden', e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+              Oculto: los jugadores no lo ven hasta que lo muestres
             </label>
           </>
         )}

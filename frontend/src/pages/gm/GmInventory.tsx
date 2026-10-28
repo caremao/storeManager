@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, HandCoins, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import { ArrowLeft, ExternalLink, HandCoins, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { isStatus } from '../../api/client'
 import {
   useChangeCurrency,
   useConvertCurrency,
   useDeleteInventory,
   useInventory,
+  useRegenerateStorefront,
   useRegenerateToken,
   useUpdateInventory,
 } from '../../api/hooks'
@@ -15,6 +16,7 @@ import { ConvertModal } from '../../components/currency/ConvertModal'
 import { CurrencyModal } from '../../components/currency/CurrencyModal'
 import { PurseWidget } from '../../components/currency/PurseWidget'
 import { HistoryPanel } from '../../components/history/HistoryPanel'
+import { CsvImport } from '../../components/items/CsvImport'
 import { ItemsManager } from '../../components/items/ItemsManager'
 import { Spinner } from '../../components/ui/Feedback'
 import { QrImage } from '../../components/ui/QrImage'
@@ -78,7 +80,7 @@ function InventoryView({ inventory }: { inventory: Inventory }) {
         {isShop && <ShopSwitches shop={inventory} onChange={(body) => update.mutateAsync(body)} />}
       </section>
 
-      <div className={`grid gap-6 ${isShop ? '' : 'lg:grid-cols-[1fr_auto]'}`}>
+      <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
         <PurseWidget
           title={isShop ? 'Caja' : 'Bolsa'}
           purse={inventory.purse}
@@ -87,7 +89,7 @@ function InventoryView({ inventory }: { inventory: Inventory }) {
           onSpend={() => setCoins('spend')}
           onConvert={() => setConverting(true)}
         />
-        {!isShop && <CharacterQr character={inventory} />}
+        {isShop ? <StorefrontQr shop={inventory} /> : <CharacterQr character={inventory} />}
       </div>
 
       <ItemsManager
@@ -96,6 +98,7 @@ function InventoryView({ inventory }: { inventory: Inventory }) {
         editable
         priceOf={isShop ? (item) => item.priceCp : undefined}
         emptyText={isShop ? 'La tienda está vacía: agrega su stock' : 'Este personaje no lleva nada'}
+        headerExtra={<CsvImport inventoryId={inventory.id} />}
         detailActions={isShop ? (item, close) => (
           <button type="button" onClick={() => { close(); setSelling(item) }} className={`${successButton} w-full`}>
             <HandCoins className="w-4 h-4" /> Vender a un personaje
@@ -159,6 +162,31 @@ function CharacterQr({ character }: { character: Inventory }) {
         className={`${secondaryButton} ${smallButton}`}>
         <RefreshCw className="w-4 h-4" /> Nuevo QR
       </button>
+    </div>
+  )
+}
+
+/** QR de la vitrina pública: cualquiera que lo escanee ve el stock a la vista, sin sesión. */
+function StorefrontQr({ shop }: { shop: Inventory }) {
+  const regenerate = useRegenerateStorefront()
+  const handleRegenerate = () => {
+    if (window.confirm('El QR actual de la vitrina dejará de funcionar. ¿Seguir?')) regenerate.mutate(shop.id)
+  }
+  if (!shop.storefrontUrl) return null
+  return (
+    <div className={`${card} p-4 flex flex-col items-center gap-3`}>
+      <p className="text-sm text-gray-400">Vitrina</p>
+      <QrImage value={shop.storefrontUrl} size={180} alt={`QR de la vitrina de ${shop.name}`} />
+      {!shop.visibleToPlayers && <p className="text-xs text-yellow-300 max-w-[180px] text-center">Cerrada: el QR no muestra nada</p>}
+      <div className="flex gap-2">
+        <a href={shop.storefrontUrl} target="_blank" rel="noreferrer" className={`${secondaryButton} ${smallButton}`}>
+          <ExternalLink className="w-4 h-4" /> Abrir
+        </a>
+        <button type="button" onClick={handleRegenerate} disabled={regenerate.isPending}
+          className={`${secondaryButton} ${smallButton}`}>
+          <RefreshCw className="w-4 h-4" /> Nuevo QR
+        </button>
+      </div>
     </div>
   )
 }

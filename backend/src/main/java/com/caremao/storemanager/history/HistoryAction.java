@@ -5,5 +5,6 @@ public enum HistoryAction {
     ITEM_UPDATED,
     ITEM_REMOVED,
     CURRENCY_UPDATED,
-    TRADE_EXECUTED
+    TRADE_EXECUTED,
+    ITEMS_IMPORTED
 }

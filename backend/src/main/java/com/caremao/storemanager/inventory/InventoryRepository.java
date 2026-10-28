@@ -17,4 +17,6 @@ public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
     List<Inventory> findByCampaignIdAndKindAndVisibleToPlayersTrueOrderByNameAsc(UUID campaignId, InventoryKind kind);
 
     Optional<Inventory> findByAccessToken(String accessToken);
+
+    Optional<Inventory> findByPublicToken(String publicToken);
 }

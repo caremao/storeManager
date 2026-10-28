@@ -58,6 +58,8 @@ public class Item {
     private boolean valueRevealed = true;
     /** En una tienda: acepta que el jugador ofrezca otro precio. */
     private boolean negotiable;
+    /** En una tienda: solo lo ve el GM (lo menciona en la mesa y lo vende directo). */
+    private boolean hidden;
     private String srdIndex;
 
     @Convert(converter = MapJsonConverter.class)
@@ -121,6 +123,7 @@ public class Item {
         s.put("perceivedValueCp", perceivedValueCp);
         s.put("valueRevealed", valueRevealed);
         s.put("negotiable", negotiable);
+        s.put("hidden", hidden);
         return s;
     }
 
@@ -250,6 +253,14 @@ public class Item {
 
     public void setNegotiable(boolean negotiable) {
         this.negotiable = negotiable;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
     }
 
     public String getSrdIndex() {

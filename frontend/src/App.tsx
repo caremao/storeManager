@@ -4,6 +4,7 @@ import { RequireRole } from './components/layout/RequireRole'
 import { Home } from './pages/Home'
 import { Join } from './pages/Join'
 import { NotFound } from './pages/NotFound'
+import { Storefront } from './pages/Storefront'
 import { GmDashboard } from './pages/gm/GmDashboard'
 import { GmInventory } from './pages/gm/GmInventory'
 import { GmTable } from './pages/gm/GmTable'
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/join" element={<Join />} />
           <Route path="/join/:token" element={<Join />} />
+          <Route path="/vitrina" element={<Storefront />} />
           <Route element={<RequireRole role="GM" />}>
             <Route path="/gm" element={<GmDashboard />} />
             <Route path="/gm/mesa" element={<GmTable />} />

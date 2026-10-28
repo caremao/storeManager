@@ -27,12 +27,13 @@ public final class InventoryDtos {
 
     /**
      * Tienda o personaje. Los campos de tienda solo vienen en tiendas y los de personaje en personajes;
-     * {@code purse} no viene cuando un jugador mira una tienda, y {@code joinUrl} solo lo ve el GM.
+     * {@code purse} no viene cuando un jugador mira una tienda, y los QR ({@code joinUrl} del personaje,
+     * {@code storefrontUrl} de la vitrina) solo los ve el GM.
      */
     public record InventoryDto(UUID id, InventoryKind kind, String name, String description, PurseDto purse,
             Boolean visibleToPlayers, Boolean requiresApproval, Boolean unlimitedFunds,
             Integer sellMarkupPct, Integer buybackPct,
-            String playerName, String joinUrl, Instant updatedAt) {
+            String playerName, String joinUrl, String storefrontUrl, Instant updatedAt) {
     }
 
     public record PurseInput(

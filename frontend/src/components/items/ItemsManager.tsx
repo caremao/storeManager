@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Eye } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { errorMessage } from '../../api/client'
 import { useDeleteItem, useItems, useMe, useRevealItem, useSaveItem } from '../../api/hooks'
 import type { Inventory, Item } from '../../api/types'
@@ -8,6 +8,7 @@ import { card, secondaryButton } from '../ui/styles'
 import { ItemDetail } from './ItemDetail'
 import { ItemFormModal } from './ItemFormModal'
 import { ItemsList } from './ItemsList'
+import { toInput } from './utils'
 
 interface ItemsManagerProps {
   inventory: Inventory
@@ -38,6 +39,7 @@ export function ItemsManager({
   const save = useSaveItem(inventory.id)
   const remove = useDeleteItem(inventory.id)
   const reveal = useRevealItem(inventory.id)
+  const toggleHidden = useSaveItem(inventory.id)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [form, setForm] = useState<{ item?: Item } | null>(null)
   const role = me?.role === 'GM' ? 'gm' : 'player'
@@ -54,6 +56,15 @@ export function ItemsManager({
           <Eye className="w-4 h-4" /> Revelar valor
         </button>
       )}
+      {role === 'gm' && forShop && (
+        <button type="button" disabled={toggleHidden.isPending}
+          onClick={() => toggleHidden.mutate({ id: item.id, input: { ...toInput(item), hidden: !item.hidden } })}
+          className={`${secondaryButton} w-full`}>
+          {item.hidden
+            ? <><Eye className="w-4 h-4" /> Mostrar a los jugadores</>
+            : <><EyeOff className="w-4 h-4" /> Ocultar a los jugadores</>}
+        </button>
+      )}
       {detailActions?.(item, close)}
     </>
   )
@@ -65,7 +76,9 @@ export function ItemsManager({
         {headerExtra}
       </div>
       {error && <ErrorBox>No se pudieron cargar los items.</ErrorBox>}
-      {reveal.error && <div className="mb-3"><ErrorBox>{errorMessage(reveal.error)}</ErrorBox></div>}
+      {(reveal.error ?? toggleHidden.error) && (
+        <div className="mb-3"><ErrorBox>{errorMessage(reveal.error ?? toggleHidden.error)}</ErrorBox></div>
+      )}
       <ItemsList
         items={items}
         isLoading={isLoading}

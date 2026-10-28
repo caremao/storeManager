@@ -42,4 +42,15 @@ group('historial', () => {
     expect(text).toBe('Gharra compró 1× Alfombra en Zoco por 80 po')
     expect(detail).toBe('regateado (lista 100 po c/u)')
   })
+
+  it('resume una importación CSV', () => {
+    const { text, detail } = describe(entry({
+      action: 'ITEMS_IMPORTED',
+      inventoryName: 'Bazar',
+      entityName: null,
+      details: { rows: 3, created: 1, merged: 2 },
+    }))
+    expect(text).toBe('GM importó 3 filas de CSV a Bazar')
+    expect(detail).toBe('1 item nuevo · 2 sumados al stock')
+  })
 })

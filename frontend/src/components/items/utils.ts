@@ -1,4 +1,4 @@
-import type { Item, ItemRarity, ItemType } from '../../api/types'
+import type { Item, ItemInput, ItemRarity, ItemType } from '../../api/types'
 
 // Colores por rareza tomados del proyecto original; etiquetas en español.
 export const RARITY_COLORS: Record<ItemRarity, { bg: string; border: string; text: string; badge: string }> = {
@@ -54,7 +54,7 @@ export function formatProperty(value: unknown): string {
 }
 
 /** Resumen corto para la tarjeta: daño o CA si los hay. */
-export function keyStat(item: Item): string | null {
+export function keyStat(item: Pick<Item, 'properties'>): string | null {
   const p = item.properties
   if (!p) return null
   if (p.damage) return `Daño ${formatProperty(p.damage)}`
@@ -64,4 +64,28 @@ export function keyStat(item: Item): string | null {
 
 export function totalWeight(items: Item[]): number {
   return items.reduce((sum, item) => sum + (item.weight ?? 0) * item.quantity, 0)
+}
+
+/** El item tal como se guarda, para un PUT que cambia un solo campo. */
+export function toInput(item: Item): ItemInput {
+  return {
+    name: item.name,
+    type: item.type,
+    rarity: item.rarity,
+    category: item.category,
+    description: item.description,
+    notes: item.notes,
+    quantity: item.quantity,
+    unlimitedStock: item.unlimitedStock,
+    weight: item.weight,
+    valueCp: item.valueCp,
+    priceDenomination: item.priceDenomination,
+    perceivedValueCp: item.perceivedValueCp,
+    perceivedDenomination: item.perceivedDenomination,
+    valueRevealed: item.valueRevealed,
+    negotiable: item.negotiable,
+    hidden: item.hidden,
+    srdIndex: item.srdIndex,
+    properties: item.properties,
+  }
 }

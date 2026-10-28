@@ -15,6 +15,7 @@ const FIELD_LABELS: Record<string, string> = {
   perceivedValueCp: 'valor estimado',
   valueRevealed: 'conoce el valor',
   negotiable: 'negociable',
+  hidden: 'oculto',
   copper: 'pc',
   silver: 'pp',
   gold: 'po',
@@ -76,6 +77,14 @@ export function describe(entry: HistoryEntry): { text: string; detail: string | 
           haggled ? `regateado (lista ${formatMoney(Number(d.listUnitPriceCp), denomination)} c/u)` : null,
           entry.actor === 'GM' ? 'aprobado por el GM' : null,
         ].filter(Boolean).join(' · ') || null,
+      }
+    }
+    case 'ITEMS_IMPORTED': {
+      const merged = Number(d.merged ?? 0)
+      return {
+        text: `${entry.actor} importó ${d.rows} ${d.rows === 1 ? 'fila' : 'filas'} de CSV a ${where}`,
+        detail: [`${d.created} ${d.created === 1 ? 'item nuevo' : 'items nuevos'}`,
+          merged > 0 ? `${merged} ${merged === 1 ? 'sumado' : 'sumados'} al stock` : null].filter(Boolean).join(' · '),
       }
     }
   }

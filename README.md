@@ -2,10 +2,13 @@
 
 Tiendas e inventarios para una mesa presencial de D&D 5e (reglas de 2014).
 
-- **El GM** arma tiendas con su stock y sus precios, las abre o cierra, aprueba lo que piden los
-  jugadores, y registra ventas en la mesa. Cada venta descuenta stock y mueve las monedas.
+- **El GM** arma tiendas con su stock y sus precios (a mano o desde un CSV), las abre o cierra,
+  aprueba o regatea lo que piden los jugadores, y registra ventas en la mesa. Cada venta descuenta
+  stock y mueve las monedas.
 - **Cada jugador** escanea el QR de su personaje una vez. Desde el teléfono ve su bolsa y su
   inventario, los administra, y compra o vende en las tiendas abiertas.
+- **Cada tienda** tiene además un QR de vitrina: cualquiera que lo escanee ve lo que hay a la venta,
+  sin sesión. Lo que el GM marca como oculto no aparece.
 - Todo se actualiza en vivo por SSE y queda en el historial.
 
 ## Stack
@@ -43,31 +46,47 @@ cd backend && ./mvnw verify
   precios, historial y slugs.
 - **Tests de integración (`*IT`):** levantan la app y hablan por HTTP real, con cookies y SSE. Cubren
   el flujo de compra con aprobación, la compra directa, la venta, los permisos por rol y la carrera por
-  la última unidad. `SecurityIT`, `ValidationIT` y `UntrustedProxyIT` prueban entradas hostiles:
-  pedidos de otros sitios, cuerpos gigantes, rotación de IPs en el login, números fuera de rango.
+  la última unidad, el regateo, el valor oculto, la vitrina, los objetos ocultos y la importación
+  CSV. `SecurityIT`, `ValidationIT` y `UntrustedProxyIT` prueban entradas hostiles: pedidos de otros
+  sitios, cuerpos gigantes, rotación de IPs en el login, números fuera de rango.
+- **Migraciones (`MigrationTest`):** migra una base con datos como los de THREE hasta la última versión.
 
 ```bash
-cd frontend && npm run typecheck && npm run lint && npm run build
+cd frontend && npm run typecheck && npm run lint && npm test && npm run build
 ```
+
+Vitest cubre el formato de monedas, el historial y la lectura de CSV.
 
 ## Cómo funciona
 
 - **Inventarios.** Tiendas y personajes son inventarios: cada uno tiene items, monedas
-  (`copper`/`silver`/`gold`/`platinum`) e historial. Los precios se guardan en piezas de cobre.
+  (`copper`/`silver`/`gold`/`platinum`) e historial.
+- **Monedas.** Todo se guarda en piezas de cobre; cada precio recuerda en qué moneda se fijó (ppt, po,
+  pp o pc) y se muestra en ella. La bolsa permite convertir entre monedas.
+- **Valor real y percibido.** El GM fija el valor real de cada objeto. El jugador ve lo que cree que
+  vale ("desconocido" o estimado) hasta que el GM se lo revela. Las tiendas tasan con el valor real.
 - **Acceso.**
   - El GM entra con la contraseña de la campaña (8 a 72 bytes, guardada con bcrypt). No hay una
     contraseña maestra por encima de las campañas.
   - Cada personaje tiene un token de 128 bits. El QR lleva a `/join#<token>`: al ir en el fragmento,
     el navegador no lo envía al servidor y no queda en logs. La SPA lo cambia por una cookie `HttpOnly`.
   - "Nuevo QR" revoca el anterior y cierra las sesiones que lo usaban.
+  - La vitrina de cada tienda (`/vitrina#<token>`) es pública y de solo lectura: muestra nombre,
+    precio y stock de lo que está a la vista, nunca la caja, las notas ni lo oculto. Tiene su propio
+    "Nuevo QR". Si quien la abre ya es jugador de la campaña, puede ir al mostrador desde ahí.
 - **Compras y ventas.**
-  - El jugador pide desde el mostrador. Si la tienda exige aprobación, el pedido queda pendiente y el
-    GM lo aprueba, pudiendo cambiar el precio.
-  - Si no la exige, las compras se ejecutan al instante.
-  - Las ventas de un jugador a una tienda siempre esperan al GM: su precio sale del valor del item,
-    que el jugador puede editar.
+  - El jugador pide desde el mostrador. Si la tienda exige aprobación, el pedido queda pendiente
+    hasta que el GM lo aprueba. Si no la exige, las compras a precio de lista se ejecutan al instante.
+  - Las ventas de un jugador a una tienda siempre esperan al GM; la tienda ofrece el valor real por
+    el porcentaje de recompra.
+  - **Regateo.** En los productos negociables y en las ventas, el jugador puede ofrecer otro precio.
+    El GM acepta, contraoferta o rechaza, y así por turnos hasta cerrar o cancelar.
   - La ejecución (`TradeService.execute`) mueve stock, monedas e historial en una sola transacción.
     Los `@Version` evitan vender dos veces la última unidad.
+- **Importación CSV.** En cada inventario, el GM descarga una plantilla (`;`, UTF-8 con BOM, para
+  Excel en español) y sube su CSV. La vista previa marca los errores por fila; la importación es
+  todo o nada y suma la cantidad a los items que ya existen con el mismo nombre. La columna `srd`
+  completa lo que falte desde el catálogo.
 - **Reglas de la mesa.** El GM decide, desde el panel, si los jugadores pueden sumarse monedas solos.
   Gastar siempre pueden.
 - **Seguridad.**

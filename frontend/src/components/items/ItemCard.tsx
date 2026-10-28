@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { FlaskConical, Package, ScrollText, Sparkles, Sword } from 'lucide-react'
+import { EyeOff, FlaskConical, Package, ScrollText, Sparkles, Sword } from 'lucide-react'
 import type { Item, ItemType } from '../../api/types'
 import { Money } from '../ui/Money'
 import { RARITY_COLORS, RARITY_LABELS, TYPE_LABELS, keyStat } from './utils'
@@ -12,13 +12,29 @@ const TYPE_ICONS: Record<ItemType, ComponentType<{ className?: string }>> = {
   MISC: Package,
 }
 
-export function ItemIcon({ item, className }: { item: Item; className?: string }) {
+export function ItemIcon({ item, className }: { item: Pick<Item, 'type' | 'rarity'>; className?: string }) {
   const Icon = TYPE_ICONS[item.type]
   return <Icon className={`${className ?? 'w-6 h-6'} ${RARITY_COLORS[item.rarity].text}`} />
 }
 
+/** Lo que usa la tarjeta: la vitrina pública le pasa productos sin los campos privados del item. */
+export type CardItem = Pick<
+  Item,
+  | 'name'
+  | 'type'
+  | 'rarity'
+  | 'quantity'
+  | 'unlimitedStock'
+  | 'properties'
+  | 'priceDenomination'
+  | 'perceivedValueCp'
+  | 'valueRevealed'
+  | 'negotiable'
+  | 'hidden'
+>
+
 interface ItemCardProps {
-  item: Item
+  item: CardItem
   onClick?: () => void
   /** Precio a mostrar (p. ej. lo que cobra la tienda); se omite si es undefined. */
   price?: number | null
@@ -63,6 +79,11 @@ export function ItemCard({ item, onClick, price, showStock, footer }: ItemCardPr
               <span className={`text-xs px-2 py-0.5 rounded ${rarity.badge}`}>{RARITY_LABELS[item.rarity]}</span>
               <span className="text-xs text-gray-400">{TYPE_LABELS[item.type]}</span>
               {stat && <span className="text-xs text-gray-400">· {stat}</span>}
+              {item.hidden && (
+                <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-yellow-900/40 text-yellow-300">
+                  <EyeOff className="w-3 h-3" /> Oculto
+                </span>
+              )}
               {item.negotiable && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-900/50 text-indigo-300">Negociable</span>
               )}

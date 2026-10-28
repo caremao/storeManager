@@ -31,13 +31,13 @@ public final class ItemDtos {
     public record ItemDto(UUID id, UUID inventoryId, String name, ItemType type, String category, ItemRarity rarity,
             String description, String notes, int quantity, boolean unlimitedStock, Double weight, Long valueCp,
             Long priceCp, Denomination priceDenomination, Long perceivedValueCp, Denomination perceivedDenomination,
-            boolean valueRevealed, boolean negotiable, String srdIndex, Map<String, Object> properties,
-            Instant updatedAt) {
+            boolean valueRevealed, boolean negotiable, boolean hidden, String srdIndex,
+            Map<String, Object> properties, Instant updatedAt) {
     }
 
     /**
      * Alta o reemplazo completo de un item (el formulario siempre manda todos los campos). Si lo manda
-     * un jugador, el servidor ignora el valor real, si está revelado y si es negociable.
+     * un jugador, el servidor ignora el valor real, si está revelado, si es negociable y si está oculto.
      */
     public record ItemRequest(
             @NotBlank @Size(max = 200) String name,
@@ -55,6 +55,7 @@ public final class ItemDtos {
             Denomination perceivedDenomination,
             Boolean valueRevealed,
             Boolean negotiable,
+            Boolean hidden,
             @Size(max = 100) String srdIndex,
             Map<String, Object> properties) {
     }

@@ -1,5 +1,5 @@
 import { COINS, type Denomination, type MoneyValue } from '../../lib/coins'
-import { input } from './styles'
+import { inputBase } from './styles'
 
 interface MoneyInputProps {
   id: string
@@ -22,14 +22,14 @@ export function MoneyInput({ id, value, onChange, disabled, compact }: MoneyInpu
         value={value.amount}
         disabled={disabled}
         onChange={(e) => onChange({ ...value, amount: e.target.value })}
-        className={`${input} ${padding} min-w-0`}
+        className={`${inputBase} ${padding} flex-1 min-w-0`}
       />
       <select
         aria-label="Moneda"
         value={value.denomination}
         disabled={disabled}
         onChange={(e) => onChange({ ...value, denomination: e.target.value as Denomination })}
-        className={`${input} ${padding} w-auto shrink-0`}
+        className={`${inputBase} ${padding} w-20 shrink-0`}
       >
         {COINS.map((coin) => (
           <option key={coin.key} value={coin.key}>{coin.abbr}</option>

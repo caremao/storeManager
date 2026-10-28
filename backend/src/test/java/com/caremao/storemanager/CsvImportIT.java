@@ -187,15 +187,20 @@ class CsvImportIT extends IntegrationTest {
     }
 
     @Test
-    void tooManyRowsAreRejected() {
+    void upTo5000RowsAreImportedAndMoreAreRejected() {
         ApiClient gm = newGm();
         String shop = createShop(gm, "Enorme", Map.of());
         StringBuilder csv = new StringBuilder("nombre\n");
-        for (int i = 0; i < 1_001; i++) {
+        for (int i = 0; i < 5_000; i++) {
             csv.append("Item ").append(i).append('\n');
         }
+        Response done = upload(gm, shop, csv.toString(), false);
+        assertThat(done.status()).as(done.body()).isEqualTo(200);
+        assertThat(done.json().get("imported").asInt()).isEqualTo(5_000);
+
+        csv.append("Item 5000\n");
         Response preview = upload(gm, shop, csv.toString(), true);
-        assertThat(preview.body()).contains("más de 1000 filas");
+        assertThat(preview.body()).contains("más de 5000 filas");
     }
 
     @Test

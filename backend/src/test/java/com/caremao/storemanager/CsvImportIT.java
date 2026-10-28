@@ -197,4 +197,21 @@ class CsvImportIT extends IntegrationTest {
         Response preview = upload(gm, shop, csv.toString(), true);
         assertThat(preview.body()).contains("más de 1000 filas");
     }
+
+    @Test
+    void csvsUpToOneMegabyteAreAccepted() {
+        ApiClient gm = newGm();
+        String shop = createShop(gm, "Biblioteca", Map.of());
+        String description = "Un tomo con anotaciones al margen. ".repeat(50);
+        StringBuilder csv = new StringBuilder("nombre;descripcion\n");
+        for (int i = 0; csv.length() < 1_000_000 - 2_000; i++) {
+            csv.append("Libro ").append(i).append(';').append(description).append('\n');
+        }
+        Response preview = upload(gm, shop, csv.toString(), true);
+        assertThat(preview.status()).as("más que el tope anterior de 256 KB").isEqualTo(200);
+        assertThat(preview.json().get("errors")).isEmpty();
+
+        csv.append("Libro extra;").append("x".repeat(60_000)).append('\n');
+        assertThat(upload(gm, shop, csv.toString(), true).status()).as("pasado 1 MB").isEqualTo(413);
+    }
 }

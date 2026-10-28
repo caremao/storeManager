@@ -219,9 +219,23 @@ export interface Storefront {
   shopId: string | null
 }
 
+/**
+ * Dónde empieza una fila del CSV: `line` es la línea del archivo y `row` la fila de Excel, que se
+ * adelanta a la línea si una celda anterior trae saltos de línea. 0 si no se sabe.
+ */
+export interface CsvPosition {
+  line: number
+  row: number
+}
+
+export interface ImportError extends CsvPosition {
+  /** El encabezado tal como viene en el archivo; null si el error es de la fila o del archivo. */
+  column: string | null
+  message: string
+}
+
 export interface ImportResult {
-  rows: {
-    row: number
+  rows: (CsvPosition & {
     name: string
     category: string | null
     quantity: number
@@ -229,8 +243,8 @@ export interface ImportResult {
     denomination: Denomination | null
     /** Se suma a un item que ya existe con ese nombre; ahí la categoría del CSV no cambia la del item. */
     merges: boolean
-  }[]
-  errors: { row: number; message: string }[]
+  })[]
+  errors: ImportError[]
   imported: number
 }
 

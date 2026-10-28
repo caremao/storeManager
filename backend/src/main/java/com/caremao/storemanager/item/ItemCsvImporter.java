@@ -6,12 +6,16 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -35,9 +39,10 @@ import com.caremao.storemanager.srd.SrdItemRepository;
  * Carga masiva de items desde un CSV (la plantilla la arma {@link #template}).
  *
  * <p>Pensado para planillas hechas a mano o en Excel: acepta {@code ,} o {@code ;}, BOM, coma
- * decimal, celdas con saltos de línea, y tipos, rarezas y monedas en español. El *dry run* devuelve
- * la vista previa con errores por fila; la importación real es todo o nada. Si el inventario ya
- * tiene un item con el mismo nombre, suma la cantidad (para reponer stock).
+ * decimal, celdas con saltos de línea, y tipos, rarezas y monedas en español. El *dry run* es el
+ * barrido de validación: recorre todo el archivo y devuelve la vista previa y cada error con su
+ * línea, su columna y los valores que se esperaban. La importación real es todo o nada. Si el
+ * inventario ya tiene un item con el mismo nombre, suma la cantidad (para reponer stock).
  */
 @Service
 public class ItemCsvImporter {
@@ -47,11 +52,17 @@ public class ItemCsvImporter {
             "descripcion", "notas", "srd");
     static final int MAX_ROWS = 1000;
 
-    public record RowError(int row, String message) {
+    /**
+     * {@code line}: la línea del archivo donde empieza la fila (0 si no se sabe); {@code row}: la fila
+     * en Excel (0 si no se sabe), que se adelanta a la línea cuando una celda anterior trae saltos de
+     * línea. {@code column}: el encabezado tal como viene en el archivo, o null si el error es de la
+     * fila entera o del archivo.
+     */
+    public record RowError(int line, int row, String column, String message) {
     }
 
     /** {@code merges}: se suma a un item que ya existe con ese nombre (o a una fila anterior del archivo). */
-    public record PreviewRow(int row, String name, String category, int quantity, Long valueCp,
+    public record PreviewRow(int line, int row, String name, String category, int quantity, Long valueCp,
             Denomination denomination, boolean merges) {
     }
 
@@ -62,8 +73,12 @@ public class ItemCsvImporter {
         }
     }
 
+    /** Dónde empieza una fila: la línea del archivo y la fila de Excel. */
+    private record Position(int line, int row) {
+    }
+
     /** Una fila ya validada, lista para convertirse en item. */
-    private record Draft(int row, String name, ItemType type, ItemRarity rarity, String category, int quantity,
+    private record Draft(Position at, String name, ItemType type, ItemRarity rarity, String category, int quantity,
             Long valueCp, Denomination denomination, Long perceivedCp, boolean revealed, boolean negotiable,
             boolean hidden, boolean unlimitedStock, Double weight, String description, String notes, String srdIndex,
             Map<String, Object> properties) {
@@ -108,14 +123,15 @@ public class ItemCsvImporter {
             boolean merges = totals.containsKey(key(d.name()));
             long total = (long) totals.getOrDefault(key(d.name()), 0) + d.quantity();
             if (total > Limits.MAX_QUANTITY) {
-                errors.add(new RowError(d.row(), "Con esta fila " + d.name() + " pasaría de " + Limits.MAX_QUANTITY
-                        + " unidades"));
+                errors.add(new RowError(d.at().line(), d.at().row(), "cantidad", "Con esta fila " + d.name()
+                        + " pasaría de " + Limits.MAX_QUANTITY + " unidades"));
             }
             totals.put(key(d.name()), (int) Math.min(total, Limits.MAX_QUANTITY));
-            preview.add(new PreviewRow(d.row(), d.name(), d.category(), d.quantity(), d.valueCp(), d.denomination(),
-                    merges));
+            preview.add(new PreviewRow(d.at().line(), d.at().row(), d.name(), d.category(), d.quantity(),
+                    d.valueCp(), d.denomination(), merges));
         }
-        errors.sort((a, b) -> Integer.compare(a.row(), b.row()));
+        // Estable: los errores de una misma línea siguen en el orden de sus columnas.
+        errors.sort(Comparator.comparingInt(RowError::line));
         if (dryRun || !errors.isEmpty()) {
             return new ImportResult(preview, errors, 0);
         }
@@ -147,69 +163,107 @@ public class ItemCsvImporter {
 
     private List<Draft> parse(String csv, Inventory inventory, List<RowError> errors) {
         String text = csv.startsWith("﻿") ? csv.substring(1) : csv;
-        String firstLine = text.lines().findFirst().orElse("");
+        String firstLine = text.lines().filter(line -> !line.isBlank()).findFirst().orElse("");
         char delimiter = count(firstLine, ';') > count(firstLine, ',') ? ';' : ',';
+        // Sin saltarse las líneas vacías: así cada registro es una fila de Excel. El encabezado es el
+        // primer registro con datos, y lo resuelve header() para poder avisar de columnas repetidas.
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setDelimiter(delimiter)
-                .setHeader()
-                .setSkipHeaderRecord(true)
-                .setIgnoreEmptyLines(true)
+                .setIgnoreEmptyLines(false)
                 .setTrim(true)
-                .setAllowMissingColumnNames(true)
                 .get();
+        int[] lineStarts = lineStarts(text);
         List<Draft> drafts = new ArrayList<>();
+        Header header = null;
         try (CSVParser parser = CSVParser.parse(new StringReader(text), format)) {
-            Map<String, String> columns = new HashMap<>();
-            for (String header : parser.getHeaderNames()) {
-                String normalized = normalize(header);
-                if (normalized.isEmpty()) {
-                    continue;
-                }
-                if (!COLUMNS.contains(normalized)) {
-                    errors.add(new RowError(1, "Columna desconocida: «" + header + "»"));
-                }
-                columns.put(normalized, header);
-            }
-            if (!columns.containsKey("nombre")) {
-                errors.add(new RowError(1, "Falta la columna «nombre» (descarga la plantilla)"));
-                return drafts;
-            }
-            int row = 1;
+            int row = 0;
+            int dataRows = 0;
             for (CSVRecord record : parser) {
                 row++;
                 // Excel suele dejar filas con solo separadores (";;;;") al final.
                 if (record.stream().allMatch(String::isBlank)) {
                     continue;
                 }
-                if (row - 1 > MAX_ROWS) {
-                    errors.add(new RowError(row, "Hay más de " + MAX_ROWS + " filas; divide el archivo"));
+                Position at = new Position(lineAt(lineStarts, record.getCharacterPosition()), row);
+                if (header == null) {
+                    header = header(record, at, errors);
+                    continue;
+                }
+                if (++dataRows > MAX_ROWS) {
+                    errors.add(new RowError(at.line(), at.row(), null,
+                            "Hay más de " + MAX_ROWS + " filas; divide el archivo"));
                     break;
                 }
-                Draft draft = toDraft(row, record, columns, inventory, errors);
+                Draft draft = toDraft(at, record, header, delimiter, inventory, errors);
                 if (draft != null) {
                     drafts.add(draft);
                 }
             }
         } catch (IOException | UncheckedIOException | IllegalArgumentException | IllegalStateException e) {
-            errors.add(new RowError(0, "El archivo no es un CSV válido: " + e.getMessage()));
+            errors.add(unreadable(e));
+            return drafts;
+        }
+        if (header == null) {
+            errors.add(new RowError(1, 1, null, "El archivo está vacío: descarga la plantilla y llénala"));
         }
         return drafts;
     }
 
-    /** Valida una fila; si tiene errores los anota y devuelve null. */
-    private Draft toDraft(int row, CSVRecord record, Map<String, String> columns, Inventory inventory,
+    /** {@code columns}: columna de la plantilla → índice; {@code names}: los encabezados tal como vienen. */
+    private record Header(Map<String, Integer> columns, List<String> names) {
+
+        boolean has(String column) {
+            return columns.containsKey(column);
+        }
+
+        String label(String column) {
+            Integer index = columns.get(column);
+            return index == null ? column : names.get(index);
+        }
+
+        boolean named(int index) {
+            return index < names.size() && !names.get(index).isBlank();
+        }
+    }
+
+    private static Header header(CSVRecord record, Position at, List<RowError> errors) {
+        List<String> names = record.toList();
+        Map<String, Integer> columns = new HashMap<>();
+        for (int i = 0; i < names.size(); i++) {
+            String name = names.get(i);
+            String normalized = normalize(name);
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            if (!COLUMNS.contains(normalized)) {
+                errors.add(new RowError(at.line(), at.row(), name, "No es una columna de la plantilla"));
+            } else if (columns.putIfAbsent(normalized, i) != null) {
+                errors.add(new RowError(at.line(), at.row(), name, "La columna está repetida"));
+            }
+        }
+        if (!columns.containsKey("nombre")) {
+            errors.add(new RowError(at.line(), at.row(), "nombre",
+                    "Falta esta columna, que es obligatoria (descarga la plantilla)"));
+        }
+        return new Header(columns, names);
+    }
+
+    /** Valida la fila entera, anotando cada error; si hubo alguno devuelve null. */
+    private Draft toDraft(Position at, CSVRecord record, Header header, char delimiter, Inventory inventory,
             List<RowError> errors) {
-        Cells cells = new Cells(row, record, columns, errors);
+        Cells cells = new Cells(at, record, header, errors);
+        cells.strays(delimiter);
         String name = cells.text("nombre", 200);
-        if (name == null) {
-            cells.error("Falta el nombre");
+        // Sin la columna basta con el error del encabezado.
+        if (name == null && header.has("nombre")) {
+            cells.error("nombre", "Está vacío y es obligatorio");
         }
         SrdItem base = null;
         String srdIndex = cells.text("srd", 100);
         if (srdIndex != null) {
             base = srd.findById(srdIndex).orElse(null);
             if (base == null) {
-                cells.error("No existe en el SRD: «" + srdIndex + "»");
+                cells.error("srd", "«" + srdIndex + "» no existe en el SRD");
             }
         }
         boolean shop = inventory.isShop();
@@ -218,8 +272,8 @@ public class ItemCsvImporter {
         Long valueCp = cells.money("valor", denomination);
         Long perceived = cells.money("valor_percibido", denomination);
         Double weight = cells.decimal("peso", Limits.MAX_WEIGHT);
-        ItemType type = cells.choice("tipo", TYPES, "un tipo (Equipo, Poción, Pergamino, Consumible, Varios)");
-        ItemRarity rarity = cells.choice("rareza", RARITIES, "una rareza (Común, Poco común, Raro, Muy raro…)");
+        ItemType type = cells.choice("tipo", TYPES, "Equipo, Poción, Pergamino, Consumible o Varios");
+        ItemRarity rarity = cells.choice("rareza", RARITIES, "Común, Poco común, Raro, Muy raro, Legendario o Artefacto");
         Boolean revealed = cells.bool("valor_revelado");
         Boolean negotiable = cells.bool("negociable");
         Boolean hidden = cells.bool("oculto");
@@ -227,7 +281,7 @@ public class ItemCsvImporter {
         String category = cells.text("categoria", 100);
         String description = cells.text("descripcion", 20_000);
         String notes = cells.text("notas", 2_000);
-        if (cells.failed()) {
+        if (cells.flushErrors() || name == null) {
             return null;
         }
         if (base != null) {
@@ -241,7 +295,7 @@ public class ItemCsvImporter {
                 denomination = cells.has("moneda") ? denomination : natural(valueCp);
             }
         }
-        return new Draft(row, name, type == null ? ItemType.MISC : type, rarity == null ? ItemRarity.COMMON : rarity,
+        return new Draft(at, name, type == null ? ItemType.MISC : type, rarity == null ? ItemRarity.COMMON : rarity,
                 category, quantity == null ? 1 : quantity, valueCp, denomination, perceived,
                 revealed == null || revealed, shop && Boolean.TRUE.equals(negotiable),
                 shop && Boolean.TRUE.equals(hidden), shop && Boolean.TRUE.equals(unlimited), weight, description,
@@ -299,18 +353,22 @@ public class ItemCsvImporter {
             Map.entry("pc", Denomination.COPPER), Map.entry("cobre", Denomination.COPPER),
             Map.entry("copper", Denomination.COPPER), Map.entry("cp", Denomination.COPPER));
 
-    /** Las celdas de una fila, con conversiones que anotan el error y devuelven null si algo no cuadra. */
+    /**
+     * Las celdas de una fila, por el nombre de su columna en la plantilla, con conversiones que anotan
+     * el error y devuelven null si algo no cuadra.
+     */
     private static final class Cells {
-        private final int row;
+        private final Position at;
         private final CSVRecord record;
-        private final Map<String, String> columns;
+        private final Header header;
         private final List<RowError> errors;
-        private boolean failed;
+        /** Los errores de la fila con el índice de su columna (-1 si es de la fila entera). */
+        private final List<Map.Entry<Integer, RowError>> found = new ArrayList<>();
 
-        Cells(int row, CSVRecord record, Map<String, String> columns, List<RowError> errors) {
-            this.row = row;
+        Cells(Position at, CSVRecord record, Header header, List<RowError> errors) {
+            this.at = at;
             this.record = record;
-            this.columns = columns;
+            this.header = header;
             this.errors = errors;
         }
 
@@ -318,28 +376,48 @@ public class ItemCsvImporter {
             return raw(column) != null;
         }
 
-        void error(String message) {
-            failed = true;
-            errors.add(new RowError(row, message));
+        /** {@code column}: la columna de la plantilla, o null si el error es de la fila entera. */
+        void error(String column, String message) {
+            int index = column == null ? -1 : header.columns().getOrDefault(column, -1);
+            found.add(Map.entry(index, new RowError(at.line(), at.row(),
+                    column == null ? null : header.label(column), message)));
         }
 
-        boolean failed() {
-            return failed;
+        /**
+         * Pasa los errores de la fila a la lista, en el orden de las columnas del archivo y no en el que
+         * se validaron, y dice si hubo alguno.
+         */
+        boolean flushErrors() {
+            found.sort(Map.Entry.comparingByKey());
+            found.forEach(entry -> errors.add(entry.getValue()));
+            return !found.isEmpty();
         }
 
         String raw(String column) {
-            String header = columns.get(column);
-            if (header == null || !record.isSet(header)) {
+            Integer index = header.columns().get(column);
+            if (index == null || index >= record.size()) {
                 return null;
             }
-            String value = record.get(header).trim();
+            String value = record.get(index).trim();
             return value.isEmpty() ? null : value;
+        }
+
+        /** Un valor sin encabezado suele ser un separador sin comillas que corrió las celdas siguientes. */
+        void strays(char delimiter) {
+            for (int i = 0; i < record.size(); i++) {
+                if (!header.named(i) && !record.get(i).isBlank()) {
+                    error(null, "«" + shorten(record.get(i)) + "» está en la columna " + columnLetter(i)
+                            + ", que no tiene encabezado: si algún valor lleva «" + delimiter
+                            + "», enciérralo entre comillas");
+                    return;
+                }
+            }
         }
 
         String text(String column, int max) {
             String value = raw(column);
             if (value != null && value.length() > max) {
-                error("«" + column + "» tiene más de " + max + " caracteres");
+                error(column, "Tiene " + value.length() + " caracteres; el máximo es " + max);
                 return null;
             }
             return value;
@@ -353,12 +431,12 @@ public class ItemCsvImporter {
             try {
                 int n = Integer.parseInt(value);
                 if (n < min || n > max) {
-                    error("«" + column + "» tiene que estar entre " + min + " y " + max);
+                    error(column, "«" + value + "» tiene que estar entre " + min + " y " + max);
                     return null;
                 }
                 return n;
             } catch (NumberFormatException e) {
-                error("«" + column + "» no es un número entero: «" + value + "»");
+                error(column, "«" + value + "» no es un número entero");
                 return null;
             }
         }
@@ -369,12 +447,12 @@ public class ItemCsvImporter {
                 return null;
             }
             if (!value.matches("\\d+([.,]\\d+)?")) {
-                error("«" + column + "» no es un número: «" + value + "»");
+                error(column, "«" + value + "» no es un número (sin signo, con coma o punto decimal)");
                 return null;
             }
             double n = Double.parseDouble(value.replace(',', '.'));
             if (n > max) {
-                error("«" + column + "» es demasiado grande");
+                error(column, "«" + value + "» es demasiado grande");
                 return null;
             }
             return n;
@@ -387,17 +465,18 @@ public class ItemCsvImporter {
             }
             long cp = Math.round(amount * denomination.copperValue());
             if (cp > Limits.MAX_VALUE_CP) {
-                error("«" + column + "» es demasiado grande");
+                error(column, "«" + raw(column) + "» es demasiado grande");
                 return null;
             }
             return cp;
         }
 
         Denomination denomination(String column) {
-            Denomination d = choice(column, DENOMINATIONS, "una moneda (ppt, po, pp, pc)");
+            Denomination d = choice(column, DENOMINATIONS, "ppt, po, pp o pc (platino, oro, plata o cobre)");
             return d == null ? Denomination.GOLD : d;
         }
 
+        /** {@code expected}: los valores válidos, para el mensaje de error. */
         <T> T choice(String column, Map<String, T> options, String expected) {
             String value = raw(column);
             if (value == null) {
@@ -405,7 +484,7 @@ public class ItemCsvImporter {
             }
             T found = options.get(normalize(value));
             if (found == null) {
-                error("«" + column + "» tiene que ser " + expected + ", no «" + value + "»");
+                error(column, "«" + value + "» no es un valor válido; usa " + expected);
             }
             return found;
         }
@@ -419,11 +498,69 @@ public class ItemCsvImporter {
                 case "si", "s", "true", "1", "x", "yes", "y" -> true;
                 case "no", "n", "false", "0" -> false;
                 default -> {
-                    error("«" + column + "» tiene que ser sí o no, no «" + value + "»");
+                    error(column, "«" + value + "» no es un valor válido; usa sí o no");
                     yield null;
                 }
             };
         }
+    }
+
+    private static final Pattern UNCLOSED_QUOTE = Pattern.compile("\\(startline (.+?)\\)");
+    private static final Pattern AFTER_QUOTE = Pattern.compile("at line: (.+?), position");
+
+    /** Lo que Commons CSV no logra leer, en castellano y con la línea cuando su mensaje la trae. */
+    private static RowError unreadable(Exception e) {
+        String message = String.valueOf(e.getMessage());
+        Matcher unclosed = UNCLOSED_QUOTE.matcher(message);
+        if (unclosed.find()) {
+            return new RowError(digits(unclosed.group(1)), 0, null,
+                    "Unas comillas que se abren en esta línea no se cierran nunca");
+        }
+        Matcher after = AFTER_QUOTE.matcher(message);
+        if (after.find()) {
+            return new RowError(digits(after.group(1)), 0, null, "Hay texto pegado a unas comillas de cierre: si"
+                    + " un valor lleva comillas, enciérralo entero entre comillas y duplica las de adentro (\"\")");
+        }
+        return new RowError(0, 0, null, "El archivo no es un CSV válido: " + message);
+    }
+
+    /** Commons CSV formatea la línea con separador de miles según el locale ("1,234" o "1.234"). */
+    private static int digits(String formatted) {
+        String digits = formatted.replaceAll("\\D", "");
+        return digits.isEmpty() ? 0 : Integer.parseInt(digits);
+    }
+
+    /** Dónde empieza cada línea, contando como salto {@code \r\n}, {@code \n} o {@code \r} (igual que el parser). */
+    private static int[] lineStarts(String text) {
+        List<Integer> starts = new ArrayList<>();
+        starts.add(0);
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\n' || c == '\r' && (i + 1 == text.length() || text.charAt(i + 1) != '\n')) {
+                starts.add(i + 1);
+            }
+        }
+        return starts.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** El número de línea (desde 1) de una posición del texto. */
+    private static int lineAt(int[] lineStarts, long position) {
+        int found = Arrays.binarySearch(lineStarts, (int) position);
+        return (found >= 0 ? found : -found - 2) + 1;
+    }
+
+    /** 0 → A, 25 → Z, 26 → AA: como las columnas de Excel. */
+    private static String columnLetter(int index) {
+        StringBuilder letters = new StringBuilder();
+        for (int n = index + 1; n > 0; n = (n - 1) / 26) {
+            letters.insert(0, (char) ('A' + (n - 1) % 26));
+        }
+        return letters.toString();
+    }
+
+    private static String shorten(String value) {
+        String flat = value.strip().replaceAll("\\s+", " ");
+        return flat.length() > 40 ? flat.substring(0, 40) + "…" : flat;
     }
 
     /** "Categoría" → "categoria", "Poco común" → "poco_comun". */

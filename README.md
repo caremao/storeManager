@@ -94,9 +94,13 @@ Vitest cubre el formato de monedas, el historial y la lectura de CSV.
   - La ejecución (`TradeService.execute`) mueve stock, monedas e historial en una sola transacción.
     Los `@Version` evitan vender dos veces la última unidad.
 - **Importación CSV.** En cada inventario, el GM descarga una plantilla (`;`, UTF-8 con BOM, para
-  Excel en español) y sube su CSV. La vista previa marca los errores por fila; la importación es
-  todo o nada y suma la cantidad a los items que ya existen con el mismo nombre. La columna `srd`
-  completa lo que falte desde el catálogo.
+  Excel en español) y sube su CSV. Primero se hace un barrido de validación de todo el archivo: o
+  devuelve la lista de errores con su línea (y la fila de Excel si una celda con saltos de línea
+  las separa), su columna y qué se esperaba, o confirma que todo está OK y muestra la vista previa.
+  Revisa que `nombre` no esté vacío, que tipo, rareza, moneda y los sí/no tengan valores válidos,
+  números y largos, columnas desconocidas, repetidas o sin encabezado, y comillas mal cerradas. La
+  importación es todo o nada y suma la cantidad a los items que ya existen con el mismo nombre. La
+  columna `srd` completa lo que falte desde el catálogo.
 - **Reglas de la mesa.** El GM decide, desde el panel, si los jugadores pueden sumarse monedas solos.
   Gastar siempre pueden.
 - **Portal admin (`/admin`).** Muestra todas las campañas del servidor con sus tiendas, personajes,

@@ -169,7 +169,8 @@ los datos en `./data`, que está sobre ZFS (`nass/stacks`).
 ### Actualizar a la última versión de `main`
 
 Una vez creado el stack, cada deploy es un solo comando en la shell de three, con tu usuario (no
-con sudo). La primera vez hay que bajar el script; después se actualiza solo en cada deploy:
+con sudo). La primera vez hay que bajar el script; después se actualiza solo en cada deploy de
+`main`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/caremao/storeManager/main/deploy/deploy.sh -o /opt/stacks/storemanager/deploy.sh && chmod +x /opt/stacks/storemanager/deploy.sh
@@ -193,10 +194,36 @@ nada. Si no:
 5. Si no queda sano, vuelve solo a la versión anterior con la base del respaldo. La base con que
    falló queda en `backups/data-fallida-…`.
 
-Opciones: `--dry-run` dice qué haría sin tocar nada, `--ref <sha|tag|rama>` despliega otro commit y
-`--force` rehace el deploy aunque esa versión ya esté corriendo. Para volver atrás, `--ref <sha>` usa
-la imagen vieja si todavía existe, pero no repone los datos: para eso, parar el contenedor y extraer
-el respaldo en el stack (`tar -xzf backups/data-….tar.gz`) antes de correrlo.
+Opciones: `--dry-run` dice qué haría sin tocar nada, `--force` rehace el deploy aunque esa versión
+ya esté corriendo y `--yes` no pregunta antes de seguir.
+
+#### Una rama o un commit en particular
+
+Se le pasa como argumento. Un sha de 7 a 40 caracteres es un commit, y cualquier otra cosa, una rama
+(`--branch <rama>` y `--commit <sha>` lo dicen explícitamente):
+
+```bash
+/opt/stacks/storemanager/deploy.sh fix/scroll-categorias
+```
+
+```bash
+/opt/stacks/storemanager/deploy.sh 2c0670c
+```
+
+Antes de tocar nada dice cómo queda respecto de `main`, y en estos casos pregunta si sigue:
+
+- **Una rama sin mergear.** Si trae migraciones de base, las nombra: se aplican a la base real, y si
+  después vuelves a `main` sin mergear esa rama tal cual, hay que reponer el respaldo de ese deploy.
+- **Un commit viejo de `main` con migraciones posteriores.** La base de ahora ya las tiene, y la
+  versión vieja puede no arrancar (entonces vuelve sola) o fallar con ella.
+
+Un commit viejo de `main` sin migraciones posteriores no pregunta. El script solo se actualiza a sí
+mismo al desplegar lo último de `main`, para que una rama o un commit viejo no lo reemplacen. Para
+volver a `main`, `deploy.sh` sin argumentos.
+
+Para volver atrás, `deploy.sh <sha>` usa la imagen vieja si todavía existe, pero no repone los datos:
+para eso, parar el contenedor y extraer el respaldo en el stack (`tar -xzf backups/data-….tar.gz`)
+antes de correrlo.
 
 ### Exponer a internet (Tailscale Funnel)
 

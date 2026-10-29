@@ -9,6 +9,9 @@ interface ItemFiltersProps {
   onAddClick?: () => void
 }
 
+/** Fila con scroll horizontal; el pb deja sitio a las barras flotantes para que no tapen los botones. */
+const scrollRow = 'overflow-x-auto -mx-4 px-4 pb-2 sm:mx-0 sm:px-0'
+
 /** Buscador por nombre o categoría, pestañas por tipo y botones por categoría (si hay más de una). */
 export function ItemFilters({ filter, onAddClick }: ItemFiltersProps) {
   return (
@@ -34,7 +37,7 @@ export function ItemFilters({ filter, onAddClick }: ItemFiltersProps) {
       </div>
 
       {filter.types.length > 0 && (
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className={scrollRow}>
           <div className="flex gap-1 min-w-max bg-gray-900/50 p-1 rounded-lg">
             {filter.types.map((key) => (
               <button
@@ -54,7 +57,7 @@ export function ItemFilters({ filter, onAddClick }: ItemFiltersProps) {
       )}
 
       {filter.categories.length > 0 && (
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className={scrollRow}>
           <div className="flex items-center gap-2 min-w-max" role="group" aria-label="Categoría">
             <Tag className="w-4 h-4 text-gray-400" aria-hidden />
             {[{ key: null, label: 'Todas' }, ...filter.categories].map((c) => {
